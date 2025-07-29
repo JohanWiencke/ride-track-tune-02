@@ -172,6 +172,47 @@ export type Database = {
           },
         ]
       }
+      parts_inventory: {
+        Row: {
+          component_type_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          purchase_price: number | null
+          quantity: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          component_type_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_price?: number | null
+          quantity?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          component_type_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_price?: number | null
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parts_inventory_component_type_id_fkey"
+            columns: ["component_type_id"]
+            isOneToOne: false
+            referencedRelation: "component_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

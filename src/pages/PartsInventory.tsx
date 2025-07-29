@@ -54,9 +54,17 @@ const PartsInventory = () => {
     try {
       if (!user?.id) return;
 
-      // For now, use component_types as inventory placeholder
-      // TODO: Create proper parts_inventory table
-      const inventoryData: InventoryItem[] = [];
+      // Fetch inventory from parts_inventory table
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('parts_inventory')
+        .select(`
+          *,
+          component_type:component_types(*)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (inventoryError) throw inventoryError;
 
       // Fetch component types
       const { data: typesData, error: typesError } = await supabase
@@ -80,17 +88,21 @@ const PartsInventory = () => {
   };
 
   const addInventoryItem = async () => {
-    if (!selectedComponentType) return;
+    if (!selectedComponentType || !user?.id) return;
     
     setSaving(true);
     try {
-      // TODO: Implement proper inventory storage when database table is created
-      console.log('Adding inventory item:', {
-        component_type_id: selectedComponentType,
-        quantity: parseInt(quantity),
-        purchase_price: price ? parseFloat(price) : null,
-        notes: notes || null,
-      });
+      const { error } = await supabase
+        .from('parts_inventory')
+        .insert({
+          user_id: user.id,
+          component_type_id: selectedComponentType,
+          quantity: parseInt(quantity),
+          purchase_price: price ? parseFloat(price) : null,
+          notes: notes || null,
+        });
+
+      if (error) throw error;
 
       toast({
         title: "Item added to inventory",
@@ -115,8 +127,12 @@ const PartsInventory = () => {
     if (newQuantity < 0) return;
 
     try {
-      // TODO: Implement proper inventory updates when database table is created
-      console.log('Updating quantity:', itemId, newQuantity);
+      const { error } = await supabase
+        .from('parts_inventory')
+        .update({ quantity: newQuantity })
+        .eq('id', itemId);
+
+      if (error) throw error;
 
       setInventory(prev => prev.map(item => 
         item.id === itemId ? { ...item, quantity: newQuantity } : item
@@ -139,8 +155,12 @@ const PartsInventory = () => {
 
   const deleteItem = async (itemId: string) => {
     try {
-      // TODO: Implement proper inventory deletion when database table is created
-      console.log('Deleting item:', itemId);
+      const { error } = await supabase
+        .from('parts_inventory')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
 
       setInventory(prev => prev.filter(item => item.id !== itemId));
       toast({
@@ -192,7 +212,7 @@ const PartsInventory = () => {
             <Button variant="outline" size="sm" onClick={() => navigate('/')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <img src="/lovable-uploads/0bcdc662-0aa0-4fc2-97c0-2ca4dae55f49.png" alt="BMT" className="h-6 w-6" />
+            <img src="/lovable-uploads/4ff90988-aa97-4e30-a9cc-2d87ae0687bd.png" alt="BMT" className="h-6 w-6" />
             <h1 className="text-lg font-semibold">Parts Inventory</h1>
           </div>
           <Button size="sm" onClick={() => setShowAddItem(true)} className="gap-1">
