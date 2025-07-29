@@ -72,7 +72,7 @@ export function StravaConnect({ isConnected, onConnectionChange }: StravaConnect
 
       toast({
         title: "Sync Complete",
-        description: "Your Strava activities have been synced successfully.",
+        description: "Your Strava bikes and activities have been synced successfully.",
       });
     } catch (error: any) {
       toast({
@@ -95,7 +95,7 @@ export function StravaConnect({ isConnected, onConnectionChange }: StravaConnect
           Strava Integration
         </CardTitle>
         <CardDescription>
-          Connect your Strava account to automatically sync cycling activities and update bike distances.
+          Connect your Strava account to automatically sync your bike garage and cycling activities with distances.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -122,7 +122,7 @@ export function StravaConnect({ isConnected, onConnectionChange }: StravaConnect
                 variant="outline"
                 className="flex-1"
               >
-                {isSyncing ? "Syncing..." : "Sync Activities"}
+                {isSyncing ? "Syncing..." : "Sync Bikes & Activities"}
               </Button>
               <Button 
                 onClick={handleDisconnect}

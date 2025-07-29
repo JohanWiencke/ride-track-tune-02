@@ -37,6 +37,9 @@ Deno.serve(async (req) => {
       throw new Error('Strava not connected')
     }
 
+    // First, sync bikes from Strava athlete profile
+    await syncBikesFromStrava(profile.strava_access_token, supabaseClient, user.id)
+
     // Fetch recent activities from Strava
     const activitiesResponse = await fetch(
       'https://www.strava.com/api/v3/athlete/activities?per_page=50',
@@ -106,7 +109,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Activities synced successfully' }),
+      JSON.stringify({ success: true, message: 'Bikes and activities synced successfully' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -123,11 +126,74 @@ Deno.serve(async (req) => {
   }
 })
 
+async function syncBikesFromStrava(accessToken: string, supabaseClient: any, userId: string) {
+  try {
+    // Fetch athlete data to get bikes
+    const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    })
+
+    if (!athleteResponse.ok) {
+      console.error('Failed to fetch athlete data from Strava')
+      return
+    }
+
+    const athlete = await athleteResponse.json()
+    
+    if (!athlete.bikes || athlete.bikes.length === 0) {
+      console.log('No bikes found in Strava profile')
+      return
+    }
+
+    // Get existing bikes for this user
+    const { data: existingBikes } = await supabaseClient
+      .from('bikes')
+      .select('id, name, brand, model, total_distance')
+      .eq('user_id', userId)
+
+    const existingBikeNames = new Set(existingBikes?.map(bike => bike.name.toLowerCase()) || [])
+
+    // Add new bikes from Strava
+    for (const stravaBike of athlete.bikes) {
+      // Skip if bike already exists (case-insensitive comparison)
+      if (existingBikeNames.has(stravaBike.name.toLowerCase())) {
+        console.log(`Bike "${stravaBike.name}" already exists, skipping`)
+        continue
+      }
+
+      // Create new bike from Strava data
+      const { error } = await supabaseClient
+        .from('bikes')
+        .insert({
+          user_id: userId,
+          name: stravaBike.name,
+          brand: stravaBike.brand_name || null,
+          model: stravaBike.model_name || null,
+          total_distance: stravaBike.distance ? (stravaBike.distance / 1000) : 0, // Convert meters to km
+        })
+
+      if (error) {
+        console.error(`Failed to create bike "${stravaBike.name}":`, error)
+      } else {
+        console.log(`Created bike "${stravaBike.name}" from Strava`)
+      }
+    }
+  } catch (error) {
+    console.error('Error syncing bikes from Strava:', error)
+  }
+}
+
 async function processActivities(activities: any[], supabaseClient: any, userId: string) {
   // Filter for cycling activities
   const cyclingActivities = activities.filter(activity => 
     activity.type === 'Ride' && activity.distance > 0
   )
+
+  if (cyclingActivities.length === 0) {
+    return
+  }
 
   // Get user's bikes
   const { data: bikes } = await supabaseClient
@@ -139,29 +205,42 @@ async function processActivities(activities: any[], supabaseClient: any, userId:
     return
   }
 
-  // For now, add all cycling distance to the first bike
-  // In a real app, you might want to let users assign activities to specific bikes
-  const targetBike = bikes[0]
+  // Process activities and update bike distances based on gear_id when available
+  const bikeUpdates = new Map()
   
-  // Calculate total distance from new activities
-  const totalNewDistance = cyclingActivities.reduce((sum, activity) => {
-    return sum + (activity.distance / 1000) // Convert meters to kilometers
-  }, 0)
+  for (const activity of cyclingActivities) {
+    const distanceKm = activity.distance / 1000 // Convert meters to kilometers
+    
+    if (activity.gear_id) {
+      // Try to match activity gear to a bike by finding the Strava gear details
+      // For now, we'll add all unmatched activities to the first bike
+      // Future enhancement: store Strava gear IDs in bikes table for proper matching
+      const targetBike = bikes[0]
+      bikeUpdates.set(targetBike.id, (bikeUpdates.get(targetBike.id) || 0) + distanceKm)
+    } else {
+      // No gear specified, add to first bike
+      const targetBike = bikes[0]
+      bikeUpdates.set(targetBike.id, (bikeUpdates.get(targetBike.id) || 0) + distanceKm)
+    }
+  }
 
-  if (totalNewDistance > 0) {
-    // Update bike's total distance
+  // Update bike distances
+  for (const [bikeId, additionalDistance] of bikeUpdates) {
+    const bike = bikes.find(b => b.id === bikeId)
+    if (!bike) continue
+
+    const newTotalDistance = (parseFloat(bike.total_distance) || 0) + additionalDistance
+
     await supabaseClient
       .from('bikes')
-      .update({
-        total_distance: (parseFloat(targetBike.total_distance) || 0) + totalNewDistance
-      })
-      .eq('id', targetBike.id)
+      .update({ total_distance: newTotalDistance })
+      .eq('id', bikeId)
 
     // Update all active components for this bike
     const { data: components } = await supabaseClient
       .from('bike_components')
       .select('id, current_distance')
-      .eq('bike_id', targetBike.id)
+      .eq('bike_id', bikeId)
       .eq('is_active', true)
 
     if (components) {
@@ -169,7 +248,7 @@ async function processActivities(activities: any[], supabaseClient: any, userId:
         await supabaseClient
           .from('bike_components')
           .update({
-            current_distance: (parseFloat(component.current_distance) || 0) + totalNewDistance
+            current_distance: (parseFloat(component.current_distance) || 0) + additionalDistance
           })
           .eq('id', component.id)
       }
