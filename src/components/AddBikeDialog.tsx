@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { ImageUpload } from './ImageUpload';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddBikeDialogProps {
   open: boolean;
@@ -22,8 +24,10 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
   const [totalDistance, setTotalDistance] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +45,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
           total_distance: parseFloat(totalDistance) || 0,
           weight: parseFloat(weight) || null,
           price: parseFloat(price) || null,
+          image_url: imageUrl || null,
           user_id: (await supabase.auth.getUser()).data.user?.id!,
         });
 
@@ -60,6 +65,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
       setTotalDistance('');
       setWeight('');
       setPrice('');
+      setImageUrl('');
       onOpenChange(false);
       onBikeAdded();
     } catch (error: any) {
@@ -177,6 +183,17 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
                 step="0.01"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Bike Image</Label>
+            <ImageUpload
+              currentImageUrl={imageUrl}
+              onImageUploaded={setImageUrl}
+              bucket="bike-images"
+              folder={user?.id || 'unknown'}
+              variant="bike"
+            />
           </div>
           
           <div className="flex gap-3 pt-4">

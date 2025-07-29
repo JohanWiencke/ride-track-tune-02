@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { ImageUpload } from './ImageUpload';
+import { useAuth } from '@/hooks/useAuth';
 
 const editBikeSchema = z.object({
   name: z.string().min(1, 'Bike name is required'),
@@ -33,6 +35,7 @@ interface Bike {
   weight?: number;
   price?: number;
   total_distance: number;
+  image_url?: string;
 }
 
 interface EditBikeDialogProps {
@@ -44,7 +47,9 @@ interface EditBikeDialogProps {
 
 export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: EditBikeDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string>('');
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm<EditBikeFormData>({
     resolver: zodResolver(editBikeSchema),
@@ -71,6 +76,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
         weight: bike.weight || undefined,
         price: bike.price || undefined,
       });
+      setImageUrl(bike.image_url || '');
     }
   });
 
@@ -89,6 +95,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
           year: data.year || null,
           weight: data.weight || null,
           price: data.price || null,
+          image_url: imageUrl || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', bike.id);
@@ -248,6 +255,17 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Bike Image</Label>
+              <ImageUpload
+                currentImageUrl={imageUrl}
+                onImageUploaded={setImageUrl}
+                bucket="bike-images"
+                folder={user?.id || 'unknown'}
+                variant="bike"
               />
             </div>
 

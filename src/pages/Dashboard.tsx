@@ -15,6 +15,8 @@ import { StravaConnect } from '@/components/StravaConnect';
 import { TimeBasedGreeting } from '@/components/TimeBasedGreeting';
 import { WearProgress } from '@/components/WearProgress';
 import { InventoryWidget } from '@/components/InventoryWidget';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { ProfilePictureUpload } from '@/components/ProfilePictureUpload';
 
 interface Bike {
   id: string;
@@ -26,6 +28,7 @@ interface Bike {
   total_distance: number;
   weight?: number;
   price?: number;
+  image_url?: string;
 }
 
 interface BikeComponent {
@@ -177,9 +180,11 @@ const Dashboard = () => {
             <h1 className="text-lg font-semibold sm:hidden">BikeMainTrack</h1>
           </div>
           <div className="flex items-center gap-2">
+            <ProfilePictureUpload />
             <span className="text-xs text-muted-foreground hidden md:block">
               {user?.email?.split('@')[0]}
             </span>
+            <LanguageSwitcher />
             {isStravaConnected && (
               <Button size="sm" variant="outline" onClick={() => navigate('/stats')} className="flex items-center gap-1 px-2">
                 <BarChart3 className="h-3 w-3" />
@@ -354,6 +359,15 @@ const Dashboard = () => {
 
               return (
                 <Card key={bike.id} className="glass-card hover:scale-105 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20">
+                  {bike.image_url && (
+                    <div className="w-full h-32 overflow-hidden rounded-t-lg">
+                      <img 
+                        src={bike.image_url} 
+                        alt={bike.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{bike.name}</CardTitle>
