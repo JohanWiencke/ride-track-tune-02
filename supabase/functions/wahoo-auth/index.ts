@@ -48,14 +48,15 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'get_auth_url') {
-      const redirectUri = 'https://ride-track-tune.lovable.app/wahoo-callback';
+      const redirectUri = req.headers.get('origin') || 'https://localhost:3000';
       const scope = 'user_read,workouts_read';
       
       const authUrl = `https://api.wahooligan.com/oauth/authorize?` +
         `client_id=${wahooClientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
-        `scope=${scope}`;
+        `scope=${scope}&` +
+        `state=wahoo`;
 
       return new Response(
         JSON.stringify({ auth_url: authUrl }),
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      const redirectUri = 'https://ride-track-tune.lovable.app/wahoo-callback';
+      const redirectUri = req.headers.get('origin') || 'https://localhost:3000';
       
       const tokenResponse = await fetch('https://api.wahooligan.com/oauth/token', {
         method: 'POST',
