@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       // Generate Strava authorization URL
       const clientId = Deno.env.get('STRAVA_CLIENT_ID')
       const redirectUri = req.headers.get('origin') || 'https://localhost:3000'
-      const scope = 'read,activity:read'
+      const scope = 'read,activity:read,profile:read_all'
       
       const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}&state=strava`
       
