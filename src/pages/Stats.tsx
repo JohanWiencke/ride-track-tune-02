@@ -59,10 +59,17 @@ const Stats = () => {
         body: { year: new Date().getFullYear() }
       });
 
-      if (error) throw error;
-      setStravaStats(data);
+      if (error) {
+        console.error('Strava stats error:', error);
+        throw error;
+      }
+      
+      if (data) {
+        setStravaStats(data);
+      }
 
     } catch (error: any) {
+      console.error('Error fetching stats:', error);
       toast({
         title: "Error fetching stats",
         description: "Unable to load your cycling stats. Please try again.",
