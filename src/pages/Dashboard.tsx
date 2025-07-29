@@ -13,6 +13,7 @@ import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { StravaConnect } from '@/components/StravaConnect';
 import { TimeBasedGreeting } from '@/components/TimeBasedGreeting';
 import { WearProgress } from '@/components/WearProgress';
+import { InventoryWidget } from '@/components/InventoryWidget';
 
 interface Bike {
   id: string;
@@ -215,7 +216,7 @@ const Dashboard = () => {
           
           {/* Quick Stats - Takes 3 columns on large screens, stacks on smaller */}
           <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Liquid Glass Bike Widget */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/30 via-glass-purple/20 to-glass-blue/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse"></div>
@@ -305,6 +306,12 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Inventory Stats Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Parts Inventory</h2>
+          <InventoryWidget />
         </div>
 
         {/* Bikes Section */}

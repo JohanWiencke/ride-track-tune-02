@@ -8,31 +8,31 @@ export const TimeBasedGreeting = () => {
       const hour = new Date().getHours();
       const greetings = {
         morning: [
-          "Good morning! Ready to ride?",
-          "Rise and grind! Time to check your bike.",
-          "Good morning, cyclist! Let's maintain those rides.",
-          "Morning sunshine! Your bike awaits.",
-          "Good morning! Fresh wheels for fresh adventures."
+          "Good morning! Rise and grind.",
+          "Morning sunshine! Fresh wheels for fresh adventures.",
+          "Good morning, cyclist! Time to check your bike.",
+          "Rise and shine! Your bike awaits.",
+          "Good morning! Ready for today's adventure."
         ],
         afternoon: [
-          "Good afternoon! How are your rides going?",
-          "Afternoon check-in! Keep those wheels spinning.",
-          "Good afternoon, rider! Time for a maintenance break?",
-          "Afternoon vibes! Your bike is calling.",
-          "Good afternoon! Keep the momentum rolling."
+          "Good afternoon! Keep those wheels spinning.",
+          "Afternoon vibes! Perfect riding weather.",
+          "Good afternoon, rider! Keep the momentum rolling.",
+          "Afternoon energy! Time for a ride.",
+          "Good afternoon! Beautiful day for cycling."
         ],
         evening: [
-          "Good evening! Winding down after a great ride?",
+          "Good evening! Perfect time to wind down.",
           "Evening cyclist! Time to review today's miles.",
-          "Good evening! How did your bike perform today?",
-          "Evening check-in! Ready for tomorrow's adventure?",
-          "Good evening! Rest those wheels well."
+          "Good evening! Rest those wheels well.",
+          "Evening vibes! What a great day for riding.",
+          "Good evening! Time to plan tomorrow's adventure."
         ],
         night: [
           "Good night! Sweet dreams of smooth rides.",
-          "Late night maintenance session? Dedication!",
+          "Late night maintenance session! Dedication pays off.",
           "Good night, cyclist! Tomorrow brings new miles.",
-          "Burning the midnight oil on bike maintenance?",
+          "Midnight oil burning for bike maintenance! Impressive.",
           "Good night! Your bike will be ready for tomorrow."
         ]
       };

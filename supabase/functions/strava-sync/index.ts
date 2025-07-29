@@ -234,14 +234,44 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
       
       // Try to match bike by gear_id first if available
       if (activity.gear_id && userBikes) {
-        // We would need to store Strava gear_id to match properly
-        // For now, we'll use a simpler approach
+        // Get detailed activity data to find bike name
+        try {
+          const activityDetailResponse = await fetch(`https://www.strava.com/api/v3/activities/${activity.id}`, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
+          
+          if (activityDetailResponse.ok) {
+            const activityDetail = await activityDetailResponse.json();
+            
+            // Try to match by bike name if available
+            if (activityDetail.gear && activityDetail.gear.name) {
+              const matchingBike = userBikes.find(bike => 
+                bike.name.toLowerCase() === activityDetail.gear.name.toLowerCase() ||
+                `${bike.brand} ${bike.model}`.toLowerCase() === activityDetail.gear.name.toLowerCase()
+              );
+              if (matchingBike) {
+                bikeId = matchingBike.id;
+                console.log(`Matched activity to bike: ${matchingBike.name}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to fetch activity details for bike matching:', error);
+        }
       }
 
-      // If no specific bike match, find the most appropriate bike
-      if (!bikeId && userBikes && userBikes.length > 0) {
-        // For now, just use the first bike or most recently used
+      // If no specific bike match and user has only one bike, use it
+      if (!bikeId && userBikes && userBikes.length === 1) {
         bikeId = userBikes[0].id;
+        console.log(`Only one bike available, using: ${userBikes[0].name}`);
+      }
+      
+      // If multiple bikes and no match, skip this activity to avoid incorrect attribution
+      if (!bikeId && userBikes && userBikes.length > 1) {
+        console.log(`Multiple bikes found but no match for activity: ${activity.name}, skipping`);
+        continue;
       }
 
       // Record that we've processed this activity
