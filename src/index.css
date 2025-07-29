@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142.4 71.8% 29.2%;
+    --radius: 1rem;
+    
+    /* Liquid Glass Colors - Blue/Purple Theme */
+    --glass-primary: 240 76% 55%;
+    --glass-secondary: 260 70% 60%;
+    --glass-accent: 280 65% 65%;
+    --glass-warning: 45 80% 55%;
+    --glass-success: 160 60% 50%;
+    --glass-purple: 270 75% 60%;
+    --glass-blue: 220 85% 60%;
+    --glass-indigo: 240 70% 65%;
+    
+    /* Glass Effects */
+    --glass-bg: rgba(139, 69, 219, 0.1);
+    --glass-border: rgba(139, 69, 219, 0.2);
+    --glass-shadow: 0 8px 32px rgba(139, 69, 219, 0.3);
+    --glass-blur: 16px;
+
+    --sidebar-background: 240 10% 3.9%;
+    --sidebar-foreground: 240 5% 64.9%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 10% 3.9%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 142.4 71.8% 29.2%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142.4 71.8% 29.2%;
+
+    /* Enhanced Glass Effects for Dark Mode */
+    --glass-bg: rgba(139, 69, 219, 0.05);
+    --glass-border: rgba(139, 69, 219, 0.15);
+    --glass-shadow: 0 8px 32px rgba(139, 69, 219, 0.4);
+    --glass-blur: 20px;
+
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 215 20.2% 65.1%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222.2 84% 4.9%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 142.4 71.8% 29.2%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    background: linear-gradient(135deg, 
+      hsl(var(--glass-blue) / 0.15) 0%, 
+      hsl(var(--glass-purple) / 0.1) 25%,
+      hsl(var(--background)) 50%,
+      hsl(var(--glass-indigo) / 0.1) 75%,
+      hsl(var(--glass-primary) / 0.15) 100%);
+    color: hsl(var(--foreground));
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* Liquid Glass Utility Classes */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: var(--radius);
+  }
+
+  .glass-button {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary) / 0.8) 0%, 
+      hsl(var(--primary) / 0.6) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid hsl(var(--primary) / 0.3);
+    transition: all 0.3s ease;
+    border-radius: var(--radius);
+  }
+
+  .glass-button:hover {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary) / 0.9) 0%, 
+      hsl(var(--primary) / 0.7) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px hsl(var(--primary) / 0.3);
+  }
+}
+
+@layer utilities {
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    0%, 100% { 
+      box-shadow: 
+        0 0 20px hsla(var(--glass-blue), 0.15),
+        0 0 40px hsla(var(--glass-purple), 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    50% { 
+      box-shadow: 
+        0 0 40px hsla(var(--glass-blue), 0.25),
+        0 0 80px hsla(var(--glass-purple), 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { 
+      transform: translateY(0px) rotate(0deg); 
+    }
+    25% { 
+      transform: translateY(-8px) rotate(1deg); 
+    }
+    75% { 
+      transform: translateY(-12px) rotate(-1deg); 
+    }
+  }
+
+  .animate-gradient {
+    animation: gradient 6s ease infinite;
+    background-size: 200% 200%;
+  }
+
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .animate-liquid {
+    animation: liquid 5s ease-in-out infinite;
+  }
+
+  @keyframes liquid {
+    0%, 100% { 
+      transform: translateY(0px) scale(1);
+      border-radius: 12px;
+    }
+    25% { 
+      transform: translateY(-2px) scale(1.02);
+      border-radius: 16px 12px 14px 10px;
+    }
+    50% { 
+      transform: translateY(-4px) scale(1.01);
+      border-radius: 10px 16px 12px 14px;
+    }
+    75% { 
+      transform: translateY(-2px) scale(1.015);
+      border-radius: 14px 10px 16px 12px;
+    }
+  }
+}
