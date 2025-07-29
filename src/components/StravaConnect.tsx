@@ -7,9 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 interface StravaConnectProps {
   isConnected: boolean;
   onConnectionChange: (connected: boolean) => void;
+  onSyncComplete?: () => void;
 }
 
-export function StravaConnect({ isConnected, onConnectionChange }: StravaConnectProps) {
+export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete }: StravaConnectProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -74,6 +75,9 @@ export function StravaConnect({ isConnected, onConnectionChange }: StravaConnect
         title: "Sync Complete",
         description: "Your Strava bikes and activities have been synced successfully.",
       });
+      
+      // Trigger refresh of bikes list
+      onSyncComplete?.();
     } catch (error: any) {
       toast({
         title: "Sync Error",

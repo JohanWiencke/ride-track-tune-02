@@ -37,8 +37,12 @@ Deno.serve(async (req) => {
       throw new Error('Strava not connected')
     }
 
+    console.log('Starting Strava sync for user:', user.id)
+    
     // First, sync bikes from Strava athlete profile
     await syncBikesFromStrava(profile.strava_access_token, supabaseClient, user.id)
+
+    console.log('Fetching activities from Strava...')
 
     // Fetch recent activities from Strava
     const activitiesResponse = await fetch(
@@ -128,6 +132,8 @@ Deno.serve(async (req) => {
 
 async function syncBikesFromStrava(accessToken: string, supabaseClient: any, userId: string) {
   try {
+    console.log('Syncing bikes from Strava for user:', userId)
+    
     // Fetch athlete data to get bikes
     const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
       headers: {
@@ -135,17 +141,24 @@ async function syncBikesFromStrava(accessToken: string, supabaseClient: any, use
       },
     })
 
+    console.log('Athlete response status:', athleteResponse.status)
+
     if (!athleteResponse.ok) {
-      console.error('Failed to fetch athlete data from Strava')
+      console.error('Failed to fetch athlete data from Strava. Status:', athleteResponse.status)
+      const errorText = await athleteResponse.text()
+      console.error('Error response:', errorText)
       return
     }
 
     const athlete = await athleteResponse.json()
+    console.log('Athlete data received. Bikes found:', athlete.bikes?.length || 0)
     
     if (!athlete.bikes || athlete.bikes.length === 0) {
       console.log('No bikes found in Strava profile')
       return
     }
+
+    console.log('Found bikes in Strava:', athlete.bikes.map(bike => ({ name: bike.name, brand: bike.brand_name, model: bike.model_name })))
 
     // Get existing bikes for this user
     const { data: existingBikes } = await supabaseClient

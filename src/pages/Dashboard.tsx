@@ -215,7 +215,10 @@ const Dashboard = () => {
                 if (connected) {
                   fetchBikes(); // Refresh data after connection
                 }
-              }} 
+              }}
+              onSyncComplete={() => {
+                fetchBikes(); // Refresh bikes after sync
+              }}
             />
             <WahooConnect 
               isConnected={isWahooConnected} 
