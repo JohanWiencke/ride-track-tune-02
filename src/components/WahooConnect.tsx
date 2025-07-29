@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,6 @@ interface WahooConnectProps {
 }
 
 export const WahooConnect = ({ isConnected, onConnectionChange }: WahooConnectProps) => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -27,7 +26,6 @@ export const WahooConnect = ({ isConnected, onConnectionChange }: WahooConnectPr
       if (error) throw error;
 
       if (data?.auth_url) {
-        // Redirect to Wahoo authorization
         window.location.href = data.auth_url;
       }
     } catch (error: any) {
