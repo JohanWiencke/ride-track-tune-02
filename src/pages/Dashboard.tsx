@@ -11,7 +11,7 @@ import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, E
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { StravaConnect } from '@/components/StravaConnect';
-
+import { TimeBasedGreeting } from '@/components/TimeBasedGreeting';
 import { WearProgress } from '@/components/WearProgress';
 
 interface Bike {
@@ -167,7 +167,7 @@ const Dashboard = () => {
       <header className="border-b glass-card">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/lovable-uploads/0bcdc662-0aa0-4fc2-97c0-2ca4dae55f49.png" alt="BMT" className="h-6 w-6" />
+            <img src="/lovable-uploads/4ff90988-aa97-4e30-a9cc-2d87ae0687bd.png" alt="BMT" className="h-6 w-6" />
             <h1 className="text-lg font-semibold hidden sm:block">BikeMainTrack</h1>
             <h1 className="text-lg font-semibold sm:hidden">BikeMainTrack</h1>
           </div>
@@ -194,6 +194,7 @@ const Dashboard = () => {
       </header>
 
       <div className="container py-4 space-y-6">
+        <TimeBasedGreeting />
         {/* Compact Layout: Strava + Quick Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Integration - Takes 2 columns on large screens */}

@@ -17,6 +17,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
+  const [year, setYear] = useState('');
   const [bikeType, setBikeType] = useState<'road' | 'gravel' | 'mountain'>('road');
   const [totalDistance, setTotalDistance] = useState('');
   const [weight, setWeight] = useState('');
@@ -35,6 +36,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
           name,
           brand: brand || null,
           model: model || null,
+          year: year ? parseInt(year) : null,
           bike_type: bikeType,
           total_distance: parseFloat(totalDistance) || 0,
           weight: parseFloat(weight) || null,
@@ -53,6 +55,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
       setName('');
       setBrand('');
       setModel('');
+      setYear('');
       setBikeType('road');
       setTotalDistance('');
       setWeight('');
@@ -121,6 +124,19 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
                 placeholder="e.g., Domane, Stumpjumper"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="year">Year</Label>
+            <Input
+              id="year"
+              type="number"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="e.g., 2023"
+              min="1900"
+              max="2030"
+            />
           </div>
           
           <div className="space-y-2">

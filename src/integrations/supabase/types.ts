@@ -78,6 +78,7 @@ export type Database = {
           updated_at: string
           user_id: string
           weight: number | null
+          year: number | null
         }
         Insert: {
           bike_type?: string | null
@@ -91,6 +92,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           weight?: number | null
+          year?: number | null
         }
         Update: {
           bike_type?: string | null
@@ -104,6 +106,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight?: number | null
+          year?: number | null
         }
         Relationships: []
       }
