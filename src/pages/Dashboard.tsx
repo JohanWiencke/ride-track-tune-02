@@ -223,14 +223,14 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Liquid Glass Bike Widget */}
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/30 via-glass-purple/20 to-glass-blue/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse"></div>
-                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/30 via-glass-purple/20 to-glass-blue/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
                   <CardContent className="relative p-4 z-10">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/40 to-glass-purple/40 rounded-lg blur-sm animate-pulse"></div>
-                        <div className="relative p-2 bg-gradient-to-br from-glass-blue/30 to-glass-purple/20 rounded-lg backdrop-blur-sm animate-float border border-white/20">
+                        <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/40 to-glass-purple/40 rounded-lg blur-sm"></div>
+                        <div className="relative p-2 bg-gradient-to-br from-glass-blue/30 to-glass-purple/20 rounded-lg backdrop-blur-sm border border-white/20">
                           <Bike className="h-4 w-4 text-white drop-shadow-lg" />
                         </div>
                       </div>
@@ -245,14 +245,14 @@ const Dashboard = () => {
               
               {/* Liquid Glass Components Widget */}
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-success/30 via-glass-primary/20 to-glass-success/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-glass-success/30 via-glass-primary/20 to-glass-success/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
                   <CardContent className="relative p-4 z-10">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-glass-success/40 to-glass-primary/40 rounded-lg blur-sm animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                        <div className="relative p-2 bg-gradient-to-br from-glass-success/30 to-glass-primary/20 rounded-lg backdrop-blur-sm animate-float border border-white/20" style={{ animationDelay: '0.5s' }}>
+                        <div className="absolute inset-0 bg-gradient-to-br from-glass-success/40 to-glass-primary/40 rounded-lg blur-sm"></div>
+                        <div className="relative p-2 bg-gradient-to-br from-glass-success/30 to-glass-primary/20 rounded-lg backdrop-blur-sm border border-white/20">
                           <CheckCircle className="h-4 w-4 text-white drop-shadow-lg" />
                         </div>
                       </div>
@@ -267,14 +267,14 @@ const Dashboard = () => {
               
               {/* Liquid Glass Attention Widget */}
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/30 via-red-500/20 to-glass-warning/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse" style={{ animationDelay: '1s' }}></div>
-                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/30 via-red-500/20 to-glass-warning/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
                   <CardContent className="relative p-4 z-10">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/40 to-red-500/40 rounded-lg blur-sm animate-pulse" style={{ animationDelay: '1s' }}></div>
-                        <div className="relative p-2 bg-gradient-to-br from-glass-warning/30 to-red-500/20 rounded-lg backdrop-blur-sm animate-float border border-white/20" style={{ animationDelay: '1s' }}>
+                        <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/40 to-red-500/40 rounded-lg blur-sm"></div>
+                        <div className="relative p-2 bg-gradient-to-br from-glass-warning/30 to-red-500/20 rounded-lg backdrop-blur-sm border border-white/20">
                           <AlertTriangle className="h-4 w-4 text-white drop-shadow-lg" />
                         </div>
                       </div>
@@ -289,14 +289,14 @@ const Dashboard = () => {
               
               {/* Liquid Glass Garage Value Widget */}
               <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-400/30 via-blue-500/20 to-green-400/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-400/30 via-blue-500/20 to-green-400/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
                   <CardContent className="relative p-4 z-10">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-green-400/40 to-blue-500/40 rounded-lg blur-sm animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-                        <div className="relative p-2 bg-gradient-to-br from-green-400/30 to-blue-500/20 rounded-lg backdrop-blur-sm animate-float border border-white/20" style={{ animationDelay: '1.5s' }}>
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-400/40 to-blue-500/40 rounded-lg blur-sm"></div>
+                        <div className="relative p-2 bg-gradient-to-br from-green-400/30 to-blue-500/20 rounded-lg backdrop-blur-sm border border-white/20">
                           <Euro className="h-4 w-4 text-white drop-shadow-lg" />
                         </div>
                       </div>

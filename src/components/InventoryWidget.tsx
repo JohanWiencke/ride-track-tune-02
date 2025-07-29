@@ -41,14 +41,14 @@ export const InventoryWidget = () => {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {/* Spare Parts Count Widget */}
       <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-br from-glass-primary/30 via-glass-success/20 to-glass-primary/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-glass-primary/30 via-glass-success/20 to-glass-primary/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+        <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
           <CardContent className="relative p-4 z-10">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-primary/40 to-glass-success/40 rounded-lg blur-sm animate-pulse" style={{ animationDelay: '2s' }}></div>
-                <div className="relative p-2 bg-gradient-to-br from-glass-primary/30 to-glass-success/20 rounded-lg backdrop-blur-sm animate-float border border-white/20" style={{ animationDelay: '2s' }}>
+                <div className="absolute inset-0 bg-gradient-to-br from-glass-primary/40 to-glass-success/40 rounded-lg blur-sm"></div>
+                <div className="relative p-2 bg-gradient-to-br from-glass-primary/30 to-glass-success/20 rounded-lg backdrop-blur-sm border border-white/20">
                   <Package className="h-4 w-4 text-white drop-shadow-lg" />
                 </div>
               </div>
@@ -63,14 +63,14 @@ export const InventoryWidget = () => {
       
       {/* Inventory Value Widget */}
       <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/30 via-yellow-500/20 to-glass-warning/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse" style={{ animationDelay: '2.5s' }}></div>
-        <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/30 via-yellow-500/20 to-glass-warning/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500"></div>
+        <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
           <CardContent className="relative p-4 z-10">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/40 to-yellow-500/40 rounded-lg blur-sm animate-pulse" style={{ animationDelay: '2.5s' }}></div>
-                <div className="relative p-2 bg-gradient-to-br from-glass-warning/30 to-yellow-500/20 rounded-lg backdrop-blur-sm animate-float border border-white/20" style={{ animationDelay: '2.5s' }}>
+                <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/40 to-yellow-500/40 rounded-lg blur-sm"></div>
+                <div className="relative p-2 bg-gradient-to-br from-glass-warning/30 to-yellow-500/20 rounded-lg backdrop-blur-sm border border-white/20">
                   <Euro className="h-4 w-4 text-white drop-shadow-lg" />
                 </div>
               </div>
