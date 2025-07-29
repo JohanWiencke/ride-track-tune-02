@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro } from 'lucide-react';
+import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro, Edit } from 'lucide-react';
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
+import { EditBikeDialog } from '@/components/EditBikeDialog';
 import { StravaConnect } from '@/components/StravaConnect';
 import { TimeBasedGreeting } from '@/components/TimeBasedGreeting';
 import { WearProgress } from '@/components/WearProgress';
@@ -20,6 +21,8 @@ interface Bike {
   name: string;
   brand?: string;
   model?: string;
+  bike_type: string;
+  year?: number;
   total_distance: number;
   weight?: number;
   price?: number;
@@ -46,6 +49,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showAddBike, setShowAddBike] = useState(false);
   const [selectedBike, setSelectedBike] = useState<Bike | null>(null);
+  const [editingBike, setEditingBike] = useState<Bike | null>(null);
   const [isStravaConnected, setIsStravaConnected] = useState(false);
 
   useEffect(() => {
@@ -353,15 +357,26 @@ const Dashboard = () => {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{bike.name}</CardTitle>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedBike(bike)}
-                        className="gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        Manage
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingBike(bike)}
+                          className="gap-1"
+                        >
+                          <Edit className="h-3 w-3" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedBike(bike)}
+                          className="gap-1"
+                        >
+                          <Settings className="h-3 w-3" />
+                          Manage
+                        </Button>
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       {bike.brand && bike.model && (
@@ -427,6 +442,15 @@ const Dashboard = () => {
           open={!!selectedBike}
           onOpenChange={(open) => !open && setSelectedBike(null)}
           onComponentsUpdated={fetchBikes}
+        />
+      )}
+
+      {editingBike && (
+        <EditBikeDialog
+          bike={editingBike}
+          open={!!editingBike}
+          onOpenChange={(open) => !open && setEditingBike(null)}
+          onBikeUpdated={fetchBikes}
         />
       )}
     </div>
