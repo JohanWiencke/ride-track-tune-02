@@ -234,7 +234,7 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
       
       // Try to match bike by gear_id first if available
       if (activity.gear_id && userBikes) {
-        // Get detailed activity data to find bike name
+        // Get detailed activity data to find bike information
         try {
           const activityDetailResponse = await fetch(`https://www.strava.com/api/v3/activities/${activity.id}`, {
             headers: {
@@ -245,15 +245,47 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
           if (activityDetailResponse.ok) {
             const activityDetail = await activityDetailResponse.json();
             
-            // Try to match by bike name if available
-            if (activityDetail.gear && activityDetail.gear.name) {
-              const matchingBike = userBikes.find(bike => 
-                bike.name.toLowerCase() === activityDetail.gear.name.toLowerCase() ||
-                `${bike.brand} ${bike.model}`.toLowerCase() === activityDetail.gear.name.toLowerCase()
-              );
+            // Try to match by model name if available
+            if (activityDetail.gear && activityDetail.gear.model_name) {
+              const stravaModel = activityDetail.gear.model_name.toLowerCase().trim();
+              
+              // Find bike with matching model
+              const matchingBike = userBikes.find(bike => {
+                if (!bike.model) return false;
+                
+                const appModel = bike.model.toLowerCase().trim();
+                
+                // Direct model match
+                if (appModel === stravaModel) {
+                  return true;
+                }
+                
+                // Check if one model contains the other (for variations like "Ultimate CF SL 7" vs "Ultimate CF SL 7 di2 2025")
+                if (appModel.includes(stravaModel) || stravaModel.includes(appModel)) {
+                  return true;
+                }
+                
+                return false;
+              });
+              
               if (matchingBike) {
                 bikeId = matchingBike.id;
-                console.log(`Matched activity to bike: ${matchingBike.name}`);
+                console.log(`Matched activity to bike by model: ${matchingBike.name} (${matchingBike.model})`);
+              }
+            }
+            
+            // If no model match, try by bike name as fallback
+            if (!bikeId && activityDetail.gear && activityDetail.gear.name) {
+              const stravaName = activityDetail.gear.name.toLowerCase().trim();
+              
+              const matchingBike = userBikes.find(bike => {
+                const appName = bike.name.toLowerCase().trim();
+                return appName === stravaName;
+              });
+              
+              if (matchingBike) {
+                bikeId = matchingBike.id;
+                console.log(`Matched activity to bike by name: ${matchingBike.name}`);
               }
             }
           }
