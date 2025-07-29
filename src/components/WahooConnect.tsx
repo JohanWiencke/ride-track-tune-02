@@ -19,22 +19,30 @@ export const WahooConnect = ({ isConnected, onConnectionChange }: WahooConnectPr
   const handleConnect = async () => {
     setIsConnecting(true);
     try {
+      console.log('Requesting Wahoo authorization URL...');
+      
       const { data, error } = await supabase.functions.invoke('wahoo-auth', {
         body: { action: 'get_auth_url' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Failed to get auth URL:', error);
+        throw error;
+      }
 
       if (data?.auth_url) {
+        console.log('Redirecting to Wahoo authorization...');
         window.location.href = data.auth_url;
+      } else {
+        throw new Error('No authorization URL received');
       }
     } catch (error: any) {
+      console.error('Connection error:', error);
       toast({
         title: "Connection Error",
         description: error.message || "Failed to connect to Wahoo",
         variant: "destructive",
       });
-    } finally {
       setIsConnecting(false);
     }
   };
