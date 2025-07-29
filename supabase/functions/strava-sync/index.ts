@@ -100,27 +100,15 @@ async function syncBikesFromStrava(supabaseClient: any, userId: string, accessTo
       return;
     }
 
-    // Check existing bikes to avoid duplicates
+    // Get existing bikes to check for matches and updates
     const { data: existingBikes } = await supabaseClient
       .from('bikes')
-      .select('name, brand, model')
+      .select('id, name, brand, model, total_distance')
       .eq('user_id', userId);
 
     for (const stravaBike of athlete.bikes) {
       console.log('Processing Strava bike:', stravaBike.name, stravaBike.brand_name, stravaBike.model_name);
       
-      // Check if bike already exists (match by name, brand, and model)
-      const bikeExists = existingBikes?.some(bike => 
-        bike.name === stravaBike.name &&
-        bike.brand === stravaBike.brand_name &&
-        bike.model === stravaBike.model_name
-      );
-
-      if (bikeExists) {
-        console.log('Bike already exists, skipping:', stravaBike.name);
-        continue;
-      }
-
       // Get detailed bike information
       const bikeResponse = await fetch(`https://www.strava.com/api/v3/gear/${stravaBike.id}`, {
         headers: {
@@ -136,34 +124,91 @@ async function syncBikesFromStrava(supabaseClient: any, userId: string, accessTo
       const bikeDetails = await bikeResponse.json();
       console.log('Bike details fetched:', bikeDetails.name, 'Distance:', bikeDetails.distance);
 
-      // Determine bike type based on name/description
-      let bikeType = 'road'; // default
-      const bikeName = (bikeDetails.name || '').toLowerCase();
-      const bikeDescription = (bikeDetails.description || '').toLowerCase();
-      const combinedText = `${bikeName} ${bikeDescription}`;
-      
-      if (combinedText.includes('mountain') || combinedText.includes('mtb')) {
-        bikeType = 'mountain';
-      } else if (combinedText.includes('gravel') || combinedText.includes('cyclocross') || combinedText.includes('cx')) {
-        bikeType = 'gravel';
+      // Convert Strava distance from meters to kilometers
+      const totalDistanceKm = Math.round((bikeDetails.distance || 0) / 1000);
+
+      // Try to find existing bike by model name first
+      let matchingBike = null;
+      if (stravaBike.model_name && existingBikes) {
+        const stravaModel = stravaBike.model_name.toLowerCase().trim();
+        
+        matchingBike = existingBikes.find(bike => {
+          if (!bike.model) return false;
+          
+          const appModel = bike.model.toLowerCase().trim();
+          
+          // Direct model match
+          if (appModel === stravaModel) {
+            return true;
+          }
+          
+          // Check if one model contains the other
+          if (appModel.includes(stravaModel) || stravaModel.includes(appModel)) {
+            return true;
+          }
+          
+          return false;
+        });
       }
 
-      // Insert new bike with distance from Strava (convert meters to km)
-      const { error: insertError } = await supabaseClient
-        .from('bikes')
-        .insert({
-          user_id: userId,
-          name: bikeDetails.name || `${stravaBike.brand_name} ${stravaBike.model_name}`,
-          brand: stravaBike.brand_name,
-          model: stravaBike.model_name,
-          bike_type: bikeType,
-          total_distance: Math.round((bikeDetails.distance || 0) / 1000), // Convert meters to km
-        });
+      // If no model match, try by name and brand combination
+      if (!matchingBike && existingBikes) {
+        matchingBike = existingBikes.find(bike => 
+          bike.name === stravaBike.name &&
+          bike.brand === stravaBike.brand_name &&
+          bike.model === stravaBike.model_name
+        );
+      }
 
-      if (insertError) {
-        console.error('Error inserting bike:', insertError);
+      if (matchingBike) {
+        console.log('Found matching bike, updating distance:', matchingBike.name);
+        
+        // Update existing bike's total distance
+        const { error: updateError } = await supabaseClient
+          .from('bikes')
+          .update({ 
+            total_distance: totalDistanceKm,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', matchingBike.id);
+
+        if (updateError) {
+          console.error('Error updating bike distance:', updateError);
+        } else {
+          console.log(`Updated bike ${matchingBike.name} distance to ${totalDistanceKm}km`);
+        }
       } else {
-        console.log('Successfully added bike:', bikeDetails.name);
+        console.log('No matching bike found, creating new bike');
+        
+        // Determine bike type based on name/description
+        let bikeType = 'road'; // default
+        const bikeName = (bikeDetails.name || '').toLowerCase();
+        const bikeDescription = (bikeDetails.description || '').toLowerCase();
+        const combinedText = `${bikeName} ${bikeDescription}`;
+        
+        if (combinedText.includes('mountain') || combinedText.includes('mtb')) {
+          bikeType = 'mountain';
+        } else if (combinedText.includes('gravel') || combinedText.includes('cyclocross') || combinedText.includes('cx')) {
+          bikeType = 'gravel';
+        }
+
+        // Insert new bike with distance from Strava
+        const { error: insertError } = await supabaseClient
+          .from('bikes')
+          .insert({
+            user_id: userId,
+            name: bikeDetails.name || `${stravaBike.brand_name} ${stravaBike.model_name}`,
+            brand: stravaBike.brand_name,
+            model: stravaBike.model_name,
+            bike_type: bikeType,
+            total_distance: totalDistanceKm,
+          });
+
+        if (insertError) {
+          console.error('Error inserting bike:', insertError);
+        } else {
+          console.log('Successfully added bike:', bikeDetails.name, 'with distance:', totalDistanceKm, 'km');
+        }
       }
     }
   } catch (error) {
