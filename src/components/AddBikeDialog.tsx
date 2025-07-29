@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './ImageUpload';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AddBikeDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +85,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Bike</DialogTitle>
+          <DialogTitle>{t('addBike')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -203,10 +205,10 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
               onClick={() => onOpenChange(false)}
               className="flex-1"
             >
-              Cancel
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Adding..." : "Add Bike"}
+              {loading ? t('adding') : t('addBike')}
             </Button>
           </div>
         </form>

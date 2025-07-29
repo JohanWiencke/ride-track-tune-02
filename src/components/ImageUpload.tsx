@@ -3,6 +3,7 @@ import { Camera, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ImageUploadProps {
   currentImageUrl?: string;
@@ -23,6 +24,7 @@ export const ImageUpload = ({
 }: ImageUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const uploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -52,7 +54,7 @@ export const ImageUpload = ({
       
       toast({
         title: "Success",
-        description: "Image uploaded successfully!",
+        description: t('imageUploadedSuccess'),
       });
     } catch (error) {
       toast({
@@ -72,11 +74,11 @@ export const ImageUpload = ({
   if (variant === 'profile') {
     return (
       <div className={`relative ${className}`}>
-        <div className="w-24 h-24 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
           {currentImageUrl ? (
             <img src={currentImageUrl} alt="Profile" className="w-full h-full object-cover" />
           ) : (
-            <Camera className="w-8 h-8 text-muted-foreground" />
+            <Camera className="w-4 h-4 text-muted-foreground" />
           )}
         </div>
         <input
@@ -89,18 +91,18 @@ export const ImageUpload = ({
         />
         <label
           htmlFor="profile-upload"
-          className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors"
+          className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 cursor-pointer hover:bg-primary/90 transition-colors"
         >
-          <Camera className="w-4 h-4" />
+          <Camera className="w-3 h-3" />
         </label>
         {currentImageUrl && (
           <Button
             variant="destructive"
             size="sm"
-            className="absolute -top-2 -right-2 rounded-full p-1 h-6 w-6"
+            className="absolute -top-1 -right-1 rounded-full p-1 h-4 w-4"
             onClick={removeImage}
           >
-            <X className="w-3 h-3" />
+            <X className="w-2 h-2" />
           </Button>
         )}
       </div>
@@ -128,7 +130,7 @@ export const ImageUpload = ({
             <div className="mt-4">
               <label htmlFor="bike-upload" className="cursor-pointer">
                 <span className="text-sm font-medium text-primary hover:text-primary/80">
-                  Click to upload
+                  {t('clickToUpload')}
                 </span>
                 <input
                   id="bike-upload"
@@ -140,14 +142,14 @@ export const ImageUpload = ({
                   disabled={uploading}
                 />
               </label>
-              <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('dragAndDrop')}</p>
             </div>
           </div>
         )}
       </div>
       {uploading && (
         <div className="text-center text-sm text-muted-foreground">
-          Uploading...
+          {t('uploading')}
         </div>
       )}
     </div>

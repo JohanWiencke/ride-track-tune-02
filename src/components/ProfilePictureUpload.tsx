@@ -57,6 +57,7 @@ export const ProfilePictureUpload = () => {
       bucket="profile-pictures"
       folder={user.id}
       variant="profile"
+      className="scale-75"
     />
   );
 };

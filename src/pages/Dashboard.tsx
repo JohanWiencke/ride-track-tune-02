@@ -17,6 +17,7 @@ import { WearProgress } from '@/components/WearProgress';
 import { InventoryWidget } from '@/components/InventoryWidget';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ProfilePictureUpload } from '@/components/ProfilePictureUpload';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Bike {
   id: string;
@@ -46,6 +47,7 @@ interface BikeComponent {
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [bikes, setBikes] = useState<Bike[]>([]);
   const [components, setComponents] = useState<BikeComponent[]>([]);
@@ -188,16 +190,16 @@ const Dashboard = () => {
             {isStravaConnected && (
               <Button size="sm" variant="outline" onClick={() => navigate('/stats')} className="flex items-center gap-1 px-2">
                 <BarChart3 className="h-3 w-3" />
-                <span className="hidden sm:inline">Stats</span>
+                <span className="hidden sm:inline">{t('stats')}</span>
               </Button>
             )}
             <Button size="sm" variant="outline" onClick={() => navigate('/parts-inventory')} className="flex items-center gap-1 px-2">
               <Package className="h-3 w-3" />
-              <span className="hidden sm:inline">Parts</span>
+              <span className="hidden sm:inline">{t('inventory')}</span>
             </Button>
             <Button size="sm" variant="outline" onClick={signOut} className="px-2">
-              <span className="hidden sm:inline">Sign Out</span>
-              <span className="sm:hidden">Out</span>
+              <span className="hidden sm:inline">{t('signOut')}</span>
+              <span className="sm:hidden">{t('signOut')}</span>
             </Button>
           </div>
         </div>
@@ -319,17 +321,17 @@ const Dashboard = () => {
 
         {/* Inventory Stats Section */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">Parts Inventory</h2>
+          <h2 className="text-xl font-bold">{t('partsInventory')}</h2>
           <InventoryWidget />
         </div>
 
         {/* Bikes Section */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Your Bikes</h2>
+          <h2 className="text-xl font-bold">{t('myBikes')}</h2>
           <Button size="sm" onClick={() => setShowAddBike(true)} className="gap-1 glass-button">
             <Plus className="h-3 w-3" />
-            <span className="hidden sm:inline">Add Bike</span>
-            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">{t('addBike')}</span>
+            <span className="sm:hidden">{t('add')}</span>
           </Button>
         </div>
 
@@ -379,7 +381,7 @@ const Dashboard = () => {
                           className="gap-1"
                         >
                           <Edit className="h-3 w-3" />
-                          Edit
+                          {t('edit')}
                         </Button>
                         <Button
                           variant="outline"
@@ -388,7 +390,7 @@ const Dashboard = () => {
                           className="gap-1"
                         >
                           <Settings className="h-3 w-3" />
-                          Manage
+                          {t('manageParts')}
                         </Button>
                       </div>
                     </div>
