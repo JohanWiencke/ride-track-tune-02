@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +17,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
+  const [bikeType, setBikeType] = useState<'road' | 'gravel' | 'mountain'>('road');
   const [totalDistance, setTotalDistance] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
@@ -33,6 +35,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
           name,
           brand: brand || null,
           model: model || null,
+          bike_type: bikeType,
           total_distance: parseFloat(totalDistance) || 0,
           weight: parseFloat(weight) || null,
           price: parseFloat(price) || null,
@@ -50,6 +53,7 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
       setName('');
       setBrand('');
       setModel('');
+      setBikeType('road');
       setTotalDistance('');
       setWeight('');
       setPrice('');
@@ -79,9 +83,23 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Road Bike, Mountain Bike"
+              placeholder="e.g., My Road Bike, Trail Beast"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bikeType">Bike Type *</Label>
+            <Select value={bikeType} onValueChange={(value: 'road' | 'gravel' | 'mountain') => setBikeType(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select bike type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="road">Road Bike</SelectItem>
+                <SelectItem value="gravel">Gravel Bike</SelectItem>
+                <SelectItem value="mountain">Mountain Bike</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid grid-cols-2 gap-4">

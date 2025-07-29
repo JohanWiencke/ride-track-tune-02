@@ -67,6 +67,7 @@ export type Database = {
       }
       bikes: {
         Row: {
+          bike_type: string | null
           brand: string | null
           created_at: string
           id: string
@@ -79,6 +80,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          bike_type?: string | null
           brand?: string | null
           created_at?: string
           id?: string
@@ -91,6 +93,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          bike_type?: string | null
           brand?: string | null
           created_at?: string
           id?: string
@@ -176,9 +179,6 @@ export type Database = {
           strava_refresh_token: string | null
           updated_at: string
           user_id: string
-          wahoo_access_token: string | null
-          wahoo_refresh_token: string | null
-          wahoo_user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -189,9 +189,6 @@ export type Database = {
           strava_refresh_token?: string | null
           updated_at?: string
           user_id: string
-          wahoo_access_token?: string | null
-          wahoo_refresh_token?: string | null
-          wahoo_user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -202,11 +199,46 @@ export type Database = {
           strava_refresh_token?: string | null
           updated_at?: string
           user_id?: string
-          wahoo_access_token?: string | null
-          wahoo_refresh_token?: string | null
-          wahoo_user_id?: string | null
         }
         Relationships: []
+      }
+      strava_activities: {
+        Row: {
+          bike_id: string | null
+          created_at: string
+          distance: number
+          id: string
+          processed_at: string
+          strava_activity_id: string
+          user_id: string
+        }
+        Insert: {
+          bike_id?: string | null
+          created_at?: string
+          distance: number
+          id?: string
+          processed_at?: string
+          strava_activity_id: string
+          user_id: string
+        }
+        Update: {
+          bike_id?: string | null
+          created_at?: string
+          distance?: number
+          id?: string
+          processed_at?: string
+          strava_activity_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_strava_activities_bike"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

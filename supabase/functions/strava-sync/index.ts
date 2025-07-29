@@ -1,13 +1,16 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 Deno.serve(async (req) => {
+  console.log('Strava sync function called');
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -19,252 +22,271 @@ Deno.serve(async (req) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
-    )
+    );
 
-    const { data: { user } } = await supabaseClient.auth.getUser()
-    if (!user) {
-      throw new Error('Unauthorized')
+    // Get the user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseClient.auth.getUser();
+
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
+    console.log('Syncing data for user:', user.id);
+
     // Get user's Strava tokens
-    const { data: profile } = await supabaseClient
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('strava_access_token, strava_refresh_token')
       .eq('user_id', user.id)
-      .single()
+      .single();
 
-    if (!profile?.strava_access_token) {
-      throw new Error('Strava not connected')
+    if (profileError || !profile?.strava_access_token) {
+      console.error('No Strava token found for user');
+      return new Response(
+        JSON.stringify({ error: 'Strava not connected' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Starting Strava sync for user:', user.id)
-    
     // First, sync bikes from Strava athlete profile
-    await syncBikesFromStrava(profile.strava_access_token, supabaseClient, user.id)
+    await syncBikesFromStrava(supabaseClient, user.id, profile.strava_access_token);
+    
+    // Then sync activities (only new ones)
+    await processActivities(supabaseClient, user.id, profile.strava_access_token);
 
-    console.log('Fetching activities from Strava...')
-
-    // Fetch recent activities from Strava
-    const activitiesResponse = await fetch(
-      'https://www.strava.com/api/v3/athlete/activities?per_page=50',
-      {
-        headers: {
-          'Authorization': `Bearer ${profile.strava_access_token}`,
-        },
-      }
-    )
-
-    if (!activitiesResponse.ok) {
-      // Try to refresh token if unauthorized
-      if (activitiesResponse.status === 401 && profile.strava_refresh_token) {
-        const clientId = Deno.env.get('STRAVA_CLIENT_ID')
-        const clientSecret = Deno.env.get('STRAVA_CLIENT_SECRET')
-
-        const refreshResponse = await fetch('https://www.strava.com/oauth/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: profile.strava_refresh_token,
-            grant_type: 'refresh_token',
-          }),
-        })
-
-        const refreshData = await refreshResponse.json()
-
-        if (refreshResponse.ok) {
-          // Update tokens
-          await supabaseClient
-            .from('profiles')
-            .update({
-              strava_access_token: refreshData.access_token,
-              strava_refresh_token: refreshData.refresh_token,
-            })
-            .eq('user_id', user.id)
-
-          // Retry activities fetch with new token
-          const retryResponse = await fetch(
-            'https://www.strava.com/api/v3/athlete/activities?per_page=50',
-            {
-              headers: {
-                'Authorization': `Bearer ${refreshData.access_token}`,
-              },
-            }
-          )
-
-          if (!retryResponse.ok) {
-            throw new Error('Failed to fetch Strava activities after token refresh')
-          }
-
-          const activities = await retryResponse.json()
-          await processActivities(activities, supabaseClient, user.id)
-        } else {
-          throw new Error('Failed to refresh Strava token')
-        }
-      } else {
-        throw new Error('Failed to fetch Strava activities')
-      }
-    } else {
-      const activities = await activitiesResponse.json()
-      await processActivities(activities, supabaseClient, user.id)
-    }
-
+    console.log('Strava sync completed successfully');
     return new Response(
-      JSON.stringify({ success: true, message: 'Bikes and activities synced successfully' }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+      JSON.stringify({ success: true, message: 'Sync completed successfully' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
+    console.error('Error in strava-sync function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-})
+});
 
-async function syncBikesFromStrava(accessToken: string, supabaseClient: any, userId: string) {
+async function syncBikesFromStrava(supabaseClient: any, userId: string, accessToken: string) {
+  console.log('Syncing bikes from Strava athlete profile...');
+  
   try {
-    console.log('Syncing bikes from Strava for user:', userId)
-    
-    // Fetch athlete data to get bikes
+    // Get athlete profile which includes gear
     const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
-    })
-
-    console.log('Athlete response status:', athleteResponse.status)
+    });
 
     if (!athleteResponse.ok) {
-      console.error('Failed to fetch athlete data from Strava. Status:', athleteResponse.status)
-      const errorText = await athleteResponse.text()
-      console.error('Error response:', errorText)
-      return
+      console.error('Failed to fetch athlete profile:', await athleteResponse.text());
+      throw new Error('Failed to fetch athlete profile');
     }
 
-    const athlete = await athleteResponse.json()
-    console.log('Athlete data received. Bikes found:', athlete.bikes?.length || 0)
-    
+    const athlete = await athleteResponse.json();
+    console.log('Athlete profile fetched, bikes found:', athlete.bikes?.length || 0);
+
     if (!athlete.bikes || athlete.bikes.length === 0) {
-      console.log('No bikes found in Strava profile')
-      return
+      console.log('No bikes found in Strava profile');
+      return;
     }
 
-    console.log('Found bikes in Strava:', athlete.bikes.map(bike => ({ name: bike.name, brand: bike.brand_name, model: bike.model_name })))
-
-    // Get existing bikes for this user
+    // Check existing bikes to avoid duplicates
     const { data: existingBikes } = await supabaseClient
       .from('bikes')
-      .select('id, name, brand, model, total_distance')
-      .eq('user_id', userId)
+      .select('name, brand, model')
+      .eq('user_id', userId);
 
-    const existingBikeNames = new Set(existingBikes?.map(bike => bike.name.toLowerCase()) || [])
-
-    // Add new bikes from Strava
     for (const stravaBike of athlete.bikes) {
-      // Skip if bike already exists (case-insensitive comparison)
-      if (existingBikeNames.has(stravaBike.name.toLowerCase())) {
-        console.log(`Bike "${stravaBike.name}" already exists, skipping`)
-        continue
+      console.log('Processing Strava bike:', stravaBike.name, stravaBike.brand_name, stravaBike.model_name);
+      
+      // Check if bike already exists (match by name, brand, and model)
+      const bikeExists = existingBikes?.some(bike => 
+        bike.name === stravaBike.name &&
+        bike.brand === stravaBike.brand_name &&
+        bike.model === stravaBike.model_name
+      );
+
+      if (bikeExists) {
+        console.log('Bike already exists, skipping:', stravaBike.name);
+        continue;
       }
 
-      // Create new bike from Strava data
-      const { error } = await supabaseClient
+      // Get detailed bike information
+      const bikeResponse = await fetch(`https://www.strava.com/api/v3/gear/${stravaBike.id}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!bikeResponse.ok) {
+        console.warn('Failed to fetch detailed bike info for:', stravaBike.id);
+        continue;
+      }
+
+      const bikeDetails = await bikeResponse.json();
+      console.log('Bike details fetched:', bikeDetails.name, 'Distance:', bikeDetails.distance);
+
+      // Determine bike type based on name/description
+      let bikeType = 'road'; // default
+      const bikeName = (bikeDetails.name || '').toLowerCase();
+      const bikeDescription = (bikeDetails.description || '').toLowerCase();
+      const combinedText = `${bikeName} ${bikeDescription}`;
+      
+      if (combinedText.includes('mountain') || combinedText.includes('mtb')) {
+        bikeType = 'mountain';
+      } else if (combinedText.includes('gravel') || combinedText.includes('cyclocross') || combinedText.includes('cx')) {
+        bikeType = 'gravel';
+      }
+
+      // Insert new bike with distance from Strava (convert meters to km)
+      const { error: insertError } = await supabaseClient
         .from('bikes')
         .insert({
           user_id: userId,
-          name: stravaBike.name,
-          brand: stravaBike.brand_name || null,
-          model: stravaBike.model_name || null,
-          total_distance: stravaBike.distance ? (stravaBike.distance / 1000) : 0, // Convert meters to km
-        })
+          name: bikeDetails.name || `${stravaBike.brand_name} ${stravaBike.model_name}`,
+          brand: stravaBike.brand_name,
+          model: stravaBike.model_name,
+          bike_type: bikeType,
+          total_distance: Math.round((bikeDetails.distance || 0) / 1000), // Convert meters to km
+        });
 
-      if (error) {
-        console.error(`Failed to create bike "${stravaBike.name}":`, error)
+      if (insertError) {
+        console.error('Error inserting bike:', insertError);
       } else {
-        console.log(`Created bike "${stravaBike.name}" from Strava`)
+        console.log('Successfully added bike:', bikeDetails.name);
       }
     }
   } catch (error) {
-    console.error('Error syncing bikes from Strava:', error)
+    console.error('Error syncing bikes from Strava:', error);
+    throw error;
   }
 }
 
-async function processActivities(activities: any[], supabaseClient: any, userId: string) {
-  // Filter for cycling activities
-  const cyclingActivities = activities.filter(activity => 
-    activity.type === 'Ride' && activity.distance > 0
-  )
-
-  if (cyclingActivities.length === 0) {
-    return
-  }
-
-  // Get user's bikes
-  const { data: bikes } = await supabaseClient
-    .from('bikes')
-    .select('id, name, total_distance')
-    .eq('user_id', userId)
-
-  if (!bikes || bikes.length === 0) {
-    return
-  }
-
-  // Process activities and update bike distances based on gear_id when available
-  const bikeUpdates = new Map()
+async function processActivities(supabaseClient: any, userId: string, accessToken: string) {
+  console.log('Processing recent Strava activities...');
   
-  for (const activity of cyclingActivities) {
-    const distanceKm = activity.distance / 1000 // Convert meters to kilometers
+  try {
+    // Get activities from the last 30 days to avoid processing too much data
+    const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
     
-    if (activity.gear_id) {
-      // Try to match activity gear to a bike by finding the Strava gear details
-      // For now, we'll add all unmatched activities to the first bike
-      // Future enhancement: store Strava gear IDs in bikes table for proper matching
-      const targetBike = bikes[0]
-      bikeUpdates.set(targetBike.id, (bikeUpdates.get(targetBike.id) || 0) + distanceKm)
-    } else {
-      // No gear specified, add to first bike
-      const targetBike = bikes[0]
-      bikeUpdates.set(targetBike.id, (bikeUpdates.get(targetBike.id) || 0) + distanceKm)
-    }
-  }
-
-  // Update bike distances
-  for (const [bikeId, additionalDistance] of bikeUpdates) {
-    const bike = bikes.find(b => b.id === bikeId)
-    if (!bike) continue
-
-    const newTotalDistance = (parseFloat(bike.total_distance) || 0) + additionalDistance
-
-    await supabaseClient
-      .from('bikes')
-      .update({ total_distance: newTotalDistance })
-      .eq('id', bikeId)
-
-    // Update all active components for this bike
-    const { data: components } = await supabaseClient
-      .from('bike_components')
-      .select('id, current_distance')
-      .eq('bike_id', bikeId)
-      .eq('is_active', true)
-
-    if (components) {
-      for (const component of components) {
-        await supabaseClient
-          .from('bike_components')
-          .update({
-            current_distance: (parseFloat(component.current_distance) || 0) + additionalDistance
-          })
-          .eq('id', component.id)
+    const activitiesResponse = await fetch(
+      `https://www.strava.com/api/v3/athlete/activities?after=${thirtyDaysAgo}&per_page=200`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
       }
+    );
+
+    if (!activitiesResponse.ok) {
+      console.error('Failed to fetch activities:', await activitiesResponse.text());
+      throw new Error('Failed to fetch activities');
     }
+
+    const activities = await activitiesResponse.json();
+    console.log('Fetched activities:', activities.length);
+
+    // Get existing processed activities to avoid duplicates
+    const { data: processedActivities } = await supabaseClient
+      .from('strava_activities')
+      .select('strava_activity_id')
+      .eq('user_id', userId);
+
+    const processedActivityIds = new Set(processedActivities?.map(a => a.strava_activity_id) || []);
+
+    // Get user's bikes for matching
+    const { data: userBikes } = await supabaseClient
+      .from('bikes')
+      .select('id, name, brand, model, total_distance')
+      .eq('user_id', userId);
+
+    let activitiesProcessed = 0;
+
+    for (const activity of activities) {
+      // Skip if already processed
+      if (processedActivityIds.has(activity.id.toString())) {
+        continue;
+      }
+
+      // Only process rides
+      if (activity.type !== 'Ride') {
+        continue;
+      }
+
+      const distanceKm = Math.round((activity.distance || 0) / 1000);
+      if (distanceKm === 0) {
+        continue;
+      }
+
+      console.log('Processing activity:', activity.name, 'Distance:', distanceKm, 'km');
+
+      let bikeId = null;
+      
+      // Try to match bike by gear_id first if available
+      if (activity.gear_id && userBikes) {
+        // We would need to store Strava gear_id to match properly
+        // For now, we'll use a simpler approach
+      }
+
+      // If no specific bike match, find the most appropriate bike
+      if (!bikeId && userBikes && userBikes.length > 0) {
+        // For now, just use the first bike or most recently used
+        bikeId = userBikes[0].id;
+      }
+
+      // Record that we've processed this activity
+      const { error: activityError } = await supabaseClient
+        .from('strava_activities')
+        .insert({
+          user_id: userId,
+          strava_activity_id: activity.id.toString(),
+          bike_id: bikeId,
+          distance: distanceKm,
+        });
+
+      if (activityError) {
+        console.error('Error recording activity:', activityError);
+        continue;
+      }
+
+      // Update bike distance if we have a bike match
+      if (bikeId) {
+        const currentBike = userBikes.find(b => b.id === bikeId);
+        if (currentBike) {
+          const newTotalDistance = (currentBike.total_distance || 0) + distanceKm;
+          
+          const { error: bikeUpdateError } = await supabaseClient
+            .from('bikes')
+            .update({ total_distance: newTotalDistance })
+            .eq('id', bikeId);
+
+          if (bikeUpdateError) {
+            console.error('Error updating bike distance:', bikeUpdateError);
+          } else {
+            console.log(`Updated bike ${currentBike.name} distance: +${distanceKm}km (total: ${newTotalDistance}km)`);
+            // Update local copy to reflect the change
+            currentBike.total_distance = newTotalDistance;
+          }
+        }
+      }
+
+      activitiesProcessed++;
+    }
+
+    console.log(`Processed ${activitiesProcessed} new activities`);
+    
+  } catch (error) {
+    console.error('Error processing activities:', error);
+    throw error;
   }
 }

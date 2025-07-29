@@ -11,7 +11,7 @@ import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, E
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { StravaConnect } from '@/components/StravaConnect';
-import { WahooConnect } from '@/components/WahooConnect';
+
 import { WearProgress } from '@/components/WearProgress';
 
 interface Bike {
@@ -46,25 +46,17 @@ const Dashboard = () => {
   const [showAddBike, setShowAddBike] = useState(false);
   const [selectedBike, setSelectedBike] = useState<Bike | null>(null);
   const [isStravaConnected, setIsStravaConnected] = useState(false);
-  const [isWahooConnected, setIsWahooConnected] = useState(false);
 
   useEffect(() => {
     fetchBikes();
     
-    // Check if we're returning from Strava or Wahoo authorization
+    // Check if we're returning from Strava authorization
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('strava_connected') === 'true') {
       window.history.replaceState({}, '', window.location.pathname);
       toast({
-        title: "Strava Connected!",
-        description: "Your Strava account has been successfully connected.",
-      });
-    }
-    if (urlParams.get('wahoo_connected') === 'true') {
-      window.history.replaceState({}, '', window.location.pathname);
-      toast({
-        title: "Wahoo Connected!",
-        description: "Your Wahoo account has been successfully connected.",
+        title: "Connected!",
+        description: "Your Strava account has been connected successfully.",
       });
     }
   }, []);
@@ -76,15 +68,13 @@ const Dashboard = () => {
       
       const { data: profile } = await supabase
         .from('profiles')
-        .select('strava_access_token, wahoo_access_token')
+        .select('strava_access_token')
         .eq('user_id', user.id)
         .single();
       
       const stravaConnected = !!profile?.strava_access_token;
-      const wahooConnected = !!profile?.wahoo_access_token;
       
       setIsStravaConnected(stravaConnected);
-      setIsWahooConnected(wahooConnected);
     };
 
     // Check connection status every 2 seconds for 10 seconds after component mounts
@@ -204,10 +194,10 @@ const Dashboard = () => {
       </header>
 
       <div className="container py-4 space-y-6">
-        {/* Compact Layout: Strava + Wahoo + Quick Stats */}
+        {/* Compact Layout: Strava + Quick Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Integrations - Takes 2 columns on large screens */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Integration - Takes 2 columns on large screens */}
+          <div className="lg:col-span-2 grid grid-cols-1 gap-4">
             <StravaConnect 
               isConnected={isStravaConnected} 
               onConnectionChange={(connected) => {
@@ -219,15 +209,6 @@ const Dashboard = () => {
               onSyncComplete={() => {
                 fetchBikes(); // Refresh bikes after sync
               }}
-            />
-            <WahooConnect 
-              isConnected={isWahooConnected} 
-              onConnectionChange={(connected) => {
-                setIsWahooConnected(connected);
-                if (connected) {
-                  fetchBikes(); // Refresh data after connection
-                }
-              }} 
             />
           </div>
           

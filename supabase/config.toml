@@ -1,4 +1,1 @@
 project_id = "bzizesnqjsmserojzeoc"
-
-[functions.wahoo-callback]
-verify_jwt = false
