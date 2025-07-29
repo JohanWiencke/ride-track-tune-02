@@ -170,7 +170,7 @@ const Dashboard = () => {
       <header className="border-b glass-card">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bike className="h-5 w-5 text-primary" />
+            <img src="/lovable-uploads/0bcdc662-0aa0-4fc2-97c0-2ca4dae55f49.png" alt="BMT" className="h-6 w-6" />
             <h1 className="text-lg font-semibold hidden sm:block">BikeMainTrack</h1>
             <h1 className="text-lg font-semibold sm:hidden">BikeMainTrack</h1>
           </div>
