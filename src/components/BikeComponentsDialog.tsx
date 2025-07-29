@@ -48,6 +48,7 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
   const [showAddComponent, setShowAddComponent] = useState(false);
   const [selectedComponentType, setSelectedComponentType] = useState('');
   const [customDistance, setCustomDistance] = useState('');
+  const [initialDistance, setInitialDistance] = useState('');
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
@@ -100,6 +101,7 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
     try {
       const componentType = componentTypes.find(ct => ct.id === selectedComponentType);
       const replacementDistance = parseFloat(customDistance) || componentType?.default_replacement_distance || 0;
+      const currentDistance = parseFloat(initialDistance) || 0;
 
       const { error } = await supabase
         .from('bike_components')
@@ -107,8 +109,8 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
           bike_id: bike.id,
           component_type_id: selectedComponentType,
           replacement_distance: replacementDistance,
-          current_distance: 0,
-          install_distance: bike.total_distance,
+          current_distance: currentDistance,
+          install_distance: bike.total_distance - currentDistance,
         });
 
       if (error) throw error;
@@ -120,6 +122,7 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
 
       setSelectedComponentType('');
       setCustomDistance('');
+      setInitialDistance('');
       setShowAddComponent(false);
       await fetchData();
       onComponentsUpdated();
@@ -299,15 +302,30 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
                     </div>
 
                     {selectedComponentType && (
-                      <div className="space-y-2">
-                        <Label>Custom Replacement Distance (km)</Label>
-                        <Input
-                          type="number"
-                          value={customDistance}
-                          onChange={(e) => setCustomDistance(e.target.value)}
-                          placeholder={`Default: ${componentTypes.find(ct => ct.id === selectedComponentType)?.default_replacement_distance || 0}km`}
-                          min="1"
-                        />
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Custom Replacement Distance (km)</Label>
+                          <Input
+                            type="number"
+                            value={customDistance}
+                            onChange={(e) => setCustomDistance(e.target.value)}
+                            placeholder={`Default: ${componentTypes.find(ct => ct.id === selectedComponentType)?.default_replacement_distance || 0}km`}
+                            min="1"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Current Distance Used (km)</Label>
+                          <Input
+                            type="number"
+                            value={initialDistance}
+                            onChange={(e) => setInitialDistance(e.target.value)}
+                            placeholder="0 (for new component)"
+                            min="0"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Enter how many kilometers this component has already been used if it's not new.
+                          </p>
+                        </div>
                       </div>
                     )}
 
@@ -318,6 +336,7 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
                           setShowAddComponent(false);
                           setSelectedComponentType('');
                           setCustomDistance('');
+                          setInitialDistance('');
                         }}
                         className="flex-1"
                       >

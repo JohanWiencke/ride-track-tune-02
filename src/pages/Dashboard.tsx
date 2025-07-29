@@ -171,8 +171,8 @@ const Dashboard = () => {
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
             <Bike className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold hidden sm:block">Bike Maintenance</h1>
-            <h1 className="text-lg font-semibold sm:hidden">BikeTrack</h1>
+            <h1 className="text-lg font-semibold hidden sm:block">BikeMainTrack</h1>
+            <h1 className="text-lg font-semibold sm:hidden">BikeMainTrack</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground hidden md:block">
