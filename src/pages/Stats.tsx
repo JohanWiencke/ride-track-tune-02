@@ -52,9 +52,9 @@ const Stats = () => {
         return;
       }
 
-      // Fetch stats from Strava API (would be implemented via edge function)
+      // Fetch stats from Strava API
       const { data, error } = await supabase.functions.invoke('strava-stats', {
-        body: { user_id: user.id }
+        body: { year: new Date().getFullYear() }
       });
 
       if (error) throw error;
