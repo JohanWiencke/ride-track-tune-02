@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Package, Euro } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface InventoryStats {
   totalParts: number;
@@ -10,6 +11,7 @@ interface InventoryStats {
 }
 
 export const InventoryWidget = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [stats, setStats] = useState<InventoryStats>({ totalParts: 0, totalValue: 0 });
 
@@ -54,7 +56,7 @@ export const InventoryWidget = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold bg-gradient-to-r from-white via-glass-primary to-glass-success bg-clip-text text-transparent drop-shadow-sm">{stats.totalParts}</p>
-                <p className="text-xs text-white/70 font-medium">Spare Parts</p>
+                <p className="text-xs text-white/70 font-medium">{t('partsInventory')}</p>
               </div>
             </div>
           </CardContent>
@@ -76,7 +78,7 @@ export const InventoryWidget = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold bg-gradient-to-r from-white via-glass-warning to-yellow-400 bg-clip-text text-transparent drop-shadow-sm">€{stats.totalValue.toFixed(0)}</p>
-                <p className="text-xs text-white/70 font-medium">Inventory Value</p>
+                <p className="text-xs text-white/70 font-medium">{t('price')}</p>
               </div>
             </div>
           </CardContent>

@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 
+import { useTranslation } from '@/hooks/useTranslation';
+
 export const TimeBasedGreeting = () => {
+  const { t } = useTranslation();
   const [greeting, setGreeting] = useState('');
 
   useEffect(() => {
