@@ -72,9 +72,11 @@ export type Database = {
           id: string
           model: string | null
           name: string
+          price: number | null
           total_distance: number | null
           updated_at: string
           user_id: string
+          weight: number | null
         }
         Insert: {
           brand?: string | null
@@ -82,9 +84,11 @@ export type Database = {
           id?: string
           model?: string | null
           name: string
+          price?: number | null
           total_distance?: number | null
           updated_at?: string
           user_id: string
+          weight?: number | null
         }
         Update: {
           brand?: string | null
@@ -92,9 +96,11 @@ export type Database = {
           id?: string
           model?: string | null
           name?: string
+          price?: number | null
           total_distance?: number | null
           updated_at?: string
           user_id?: string
+          weight?: number | null
         }
         Relationships: []
       }
