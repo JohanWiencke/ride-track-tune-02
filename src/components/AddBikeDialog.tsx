@@ -17,6 +17,8 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [totalDistance, setTotalDistance] = useState('');
+  const [weight, setWeight] = useState('');
+  const [price, setPrice] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -32,6 +34,8 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
           brand: brand || null,
           model: model || null,
           total_distance: parseFloat(totalDistance) || 0,
+          weight: parseFloat(weight) || null,
+          price: parseFloat(price) || null,
           user_id: (await supabase.auth.getUser()).data.user?.id!,
         });
 
@@ -47,6 +51,8 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
       setBrand('');
       setModel('');
       setTotalDistance('');
+      setWeight('');
+      setPrice('');
       onOpenChange(false);
       onBikeAdded();
     } catch (error: any) {
@@ -110,6 +116,33 @@ export const AddBikeDialog = ({ open, onOpenChange, onBikeAdded }: AddBikeDialog
               min="0"
               step="0.1"
             />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="weight">Weight (kg)</Label>
+              <Input
+                id="weight"
+                type="number"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="Optional"
+                min="0"
+                step="0.1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Purchase Price (€)</Label>
+              <Input
+                id="price"
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Optional"
+                min="0"
+                step="0.01"
+              />
+            </div>
           </div>
           
           <div className="flex gap-3 pt-4">

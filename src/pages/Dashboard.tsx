@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
+import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro } from 'lucide-react';
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { StravaConnect } from '@/components/StravaConnect';
@@ -20,6 +20,8 @@ interface Bike {
   brand?: string;
   model?: string;
   total_distance: number;
+  weight?: number;
+  price?: number;
 }
 
 interface BikeComponent {
@@ -148,9 +150,14 @@ const Dashboard = () => {
 
   const getComponentsNeedingAttention = () => {
     return components.filter(c => {
-      const usage = (c.current_distance / c.replacement_distance) * 100;
-      return usage >= 70;
+      const warningThreshold = Math.max(0, c.replacement_distance - 300); // 300km before max
+      const warningUsage = (c.current_distance / warningThreshold) * 100;
+      return warningUsage >= 100;
     });
+  };
+
+  const getTotalGarageValue = () => {
+    return bikes.reduce((total, bike) => total + (bike.price || 0), 0);
   };
 
   if (loading) {
@@ -184,6 +191,10 @@ const Dashboard = () => {
                 <span className="hidden sm:inline">Stats</span>
               </Button>
             )}
+            <Button size="sm" variant="outline" onClick={() => navigate('/parts-inventory')} className="flex items-center gap-1 px-2">
+              <Package className="h-3 w-3" />
+              <span className="hidden sm:inline">Parts</span>
+            </Button>
             <Button size="sm" variant="outline" onClick={signOut} className="px-2">
               <span className="hidden sm:inline">Sign Out</span>
               <span className="sm:hidden">Out</span>
@@ -219,7 +230,7 @@ const Dashboard = () => {
           
           {/* Quick Stats - Takes 3 columns on large screens, stacks on smaller */}
           <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               {/* Liquid Glass Bike Widget */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/30 via-glass-purple/20 to-glass-blue/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse"></div>
@@ -285,6 +296,28 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+              
+              {/* Liquid Glass Garage Value Widget */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-400/30 via-blue-500/20 to-green-400/30 rounded-xl blur-xl group-hover:blur-lg transition-all duration-500 animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+                <Card className="relative glass-card border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 animate-glow overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-50"></div>
+                  <CardContent className="relative p-4 z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-400/40 to-blue-500/40 rounded-lg blur-sm animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+                        <div className="relative p-2 bg-gradient-to-br from-green-400/30 to-blue-500/20 rounded-lg backdrop-blur-sm animate-float border border-white/20" style={{ animationDelay: '1.5s' }}>
+                          <Euro className="h-4 w-4 text-white drop-shadow-lg" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold bg-gradient-to-r from-white via-green-400 to-blue-400 bg-clip-text text-transparent drop-shadow-sm">€{getTotalGarageValue().toFixed(0)}</p>
+                        <p className="text-xs text-white/70 font-medium">Garage Value</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </div>
@@ -318,8 +351,9 @@ const Dashboard = () => {
             {bikes.map((bike) => {
               const bikeComponents = getBikeComponents(bike.id);
               const needsAttention = bikeComponents.filter(c => {
-                const usage = (c.current_distance / c.replacement_distance) * 100;
-                return usage >= 70;
+                const warningThreshold = Math.max(0, c.replacement_distance - 300);
+                const warningUsage = (c.current_distance / warningThreshold) * 100;
+                return warningUsage >= 100;
               }).length;
 
               return (
@@ -337,11 +371,15 @@ const Dashboard = () => {
                         Manage
                       </Button>
                     </div>
-                    {bike.brand && bike.model && (
-                      <p className="text-sm text-muted-foreground">
-                        {bike.brand} {bike.model}
-                      </p>
-                    )}
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      {bike.brand && bike.model && (
+                        <p>{bike.brand} {bike.model}</p>
+                      )}
+                      <div className="flex gap-4">
+                        {bike.weight && <span>Weight: {bike.weight}kg</span>}
+                        {bike.price && <span>Value: €{bike.price.toFixed(0)}</span>}
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">

@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import StravaCallback from "./pages/StravaCallback";
 import WahooCallback from "./pages/WahooCallback";
 import Stats from "./pages/Stats";
+import PartsInventory from "./pages/PartsInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/stats" element={<Stats />} />
+            <Route path="/parts-inventory" element={<PartsInventory />} />
             <Route path="/strava-callback" element={<StravaCallback />} />
             <Route path="/wahoo-callback" element={<WahooCallback />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

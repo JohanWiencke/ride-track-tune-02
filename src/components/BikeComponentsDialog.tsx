@@ -8,7 +8,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, AlertTriangle, CheckCircle, Settings } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle, Settings, Trash2 } from 'lucide-react';
+import { ComponentIcon } from './ComponentIcon';
 
 interface Bike {
   id: string;
@@ -16,6 +17,8 @@ interface Bike {
   brand?: string;
   model?: string;
   total_distance: number;
+  weight?: number;
+  price?: number;
 }
 
 interface ComponentType {
@@ -49,6 +52,7 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
   const [selectedComponentType, setSelectedComponentType] = useState('');
   const [customDistance, setCustomDistance] = useState('');
   const [initialDistance, setInitialDistance] = useState('');
+  const [showRetireBike, setShowRetireBike] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
@@ -187,10 +191,46 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
     }
   };
 
+  const retireBike = async () => {
+    setUpdating(true);
+    try {
+      // Mark all components as inactive
+      await supabase
+        .from('bike_components')
+        .update({ is_active: false })
+        .eq('bike_id', bike.id);
+
+      // Delete the bike
+      await supabase
+        .from('bikes')
+        .delete()
+        .eq('id', bike.id);
+
+      toast({
+        title: "Bike retired",
+        description: `${bike.name} has been retired and removed from your garage.`,
+      });
+
+      onOpenChange(false);
+      onComponentsUpdated();
+    } catch (error: any) {
+      toast({
+        title: "Error retiring bike",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const getComponentStatus = (component: BikeComponent) => {
     const usage = (component.current_distance / component.replacement_distance) * 100;
-    if (usage >= 90) return { status: 'critical', color: 'destructive', icon: AlertTriangle };
-    if (usage >= 70) return { status: 'warning', color: 'secondary', icon: AlertTriangle };
+    const warningThreshold = Math.max(0, component.replacement_distance - 300); // 300km before max
+    const warningUsage = (component.current_distance / warningThreshold) * 100;
+    
+    if (usage >= 100) return { status: 'critical', color: 'destructive', icon: AlertTriangle };
+    if (warningUsage >= 100) return { status: 'warning', color: 'secondary', icon: AlertTriangle };
     return { status: 'good', color: 'default', icon: CheckCircle };
   };
 
@@ -202,10 +242,27 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Manage {bike.name} Components
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Manage {bike.name} Components
+            </DialogTitle>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowRetireBike(true)}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Retire Bike
+            </Button>
+          </div>
+          {bike.weight && (
+            <p className="text-sm text-muted-foreground">Weight: {bike.weight}kg</p>
+          )}
+          {bike.price && (
+            <p className="text-sm text-muted-foreground">Value: €{bike.price.toFixed(2)}</p>
+          )}
         </DialogHeader>
 
         {loading ? (
@@ -233,6 +290,7 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
+                                <ComponentIcon componentName={component.component_type.name} />
                                 <h4 className="font-medium">{component.component_type.name}</h4>
                                 <Badge variant={color as any} className="gap-1">
                                   <StatusIcon className="h-3 w-3" />
@@ -354,6 +412,37 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
                 </Card>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Retire Bike Confirmation */}
+        {showRetireBike && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="mx-4 max-w-md">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Retire {bike.name}?</h3>
+                <p className="text-muted-foreground mb-6">
+                  This will permanently remove the bike and all its components from your garage. This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRetireBike(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={retireBike}
+                    disabled={updating}
+                    className="flex-1"
+                  >
+                    {updating ? "Retiring..." : "Retire Bike"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </DialogContent>
