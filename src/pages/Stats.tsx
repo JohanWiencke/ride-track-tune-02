@@ -11,7 +11,9 @@ interface StravaStats {
   total_distance: number;
   total_rides: number;
   total_elevation: number;
-  recent_activities: Array<{
+  total_time?: number;
+  biggest_ride_distance?: number;
+  recent_activities?: Array<{
     name: string;
     distance: number;
     moving_time: number;
@@ -171,8 +173,8 @@ const Stats = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {stravaStats.recent_activities.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No recent activities found.</p>
+                {!stravaStats.recent_activities || stravaStats.recent_activities.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Recent activities data not available.</p>
                 ) : (
                   <div className="space-y-4">
                     {stravaStats.recent_activities.map((activity, index) => (
