@@ -6,45 +6,7 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {   const url = new URL(req.url)
-
-  // Handle GET request from Strava OAuth redirect
-  if (req.method === 'GET' && url.searchParams.has('code')) {
-    const code = url.searchParams.get('code')
-
-    // OPTIONAL: add error param check too
-    if (!code) {
-      return new Response('Missing code', { status: 400 })
-    }
-
-    // Exchange code for token
-    const tokenRes = await fetch('https://www.strava.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: STRAVA_CLIENT_ID,
-        client_secret: STRAVA_CLIENT_SECRET,
-        code,
-        grant_type: 'authorization_code',
-      }),
-    })
-
-    const tokenData = await tokenRes.json()
-
-    if (!tokenRes.ok) {
-      console.error('Token exchange failed:', tokenData)
-      return new Response('Strava token exchange failed', { status: 500 })
-    }
-
-    // OPTION A — redirect user to success page on frontend
-    return Response.redirect(`https://preview--ride-track-tune-02.lovable.app/strava-success`, 302)
-
-    // OPTION B — or just respond with JSON (for dev)
-    // return new Response(JSON.stringify(tokenData), {
-    //   headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    // })
-  }
-
+  if (req.method === 'OPTIONS') { 
     return new Response('ok', { headers: corsHeaders })
   }
 
@@ -79,7 +41,7 @@ Deno.serve(async (req) => {
     console.log('Received action:', action)
 
     if (action === 'get_auth_url') {
-      const redirectUri = 'https://preview--ride-track-tune-02.lovable.app/api/strava'
+      const redirectUri = 'https://qpsuzitebosqylldefup.supabase.co/functions/v1/strava-auth'
       const scope = 'read,activity:read,profile:read_all'
 
       const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}`
