@@ -297,7 +297,7 @@ export const GarageValueWidget = () => {
           </Button>
         </div>
 
-        {showChart && (valuationHistory.length > 0 || totalOriginalValue > 0) && (
+        {showChart && (
           <div className="mt-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium">Value Over Time</h4>
@@ -316,94 +316,108 @@ export const GarageValueWidget = () => {
               </div>
             </div>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={(() => {
-                  const now = new Date();
-                  const filterDate = timeFilter === 'all' ? new Date(0) : new Date(
-                    now.getTime() - (
-                      timeFilter === '2w' ? 14 * 24 * 60 * 60 * 1000 :
-                      timeFilter === '1m' ? 30 * 24 * 60 * 60 * 1000 :
-                      timeFilter === '3m' ? 90 * 24 * 60 * 60 * 1000 :
-                      timeFilter === '6m' ? 180 * 24 * 60 * 60 * 1000 :
-                      365 * 24 * 60 * 60 * 1000
-                    )
-                  );
+              {(() => {
+                const now = new Date();
+                const filterDate = timeFilter === 'all' ? new Date(0) : new Date(
+                  now.getTime() - (
+                    timeFilter === '2w' ? 14 * 24 * 60 * 60 * 1000 :
+                    timeFilter === '1m' ? 30 * 24 * 60 * 60 * 1000 :
+                    timeFilter === '3m' ? 90 * 24 * 60 * 60 * 1000 :
+                    timeFilter === '6m' ? 180 * 24 * 60 * 60 * 1000 :
+                    365 * 24 * 60 * 60 * 1000
+                  )
+                );
 
-                  let chartData = [];
+                let chartData = [];
+                
+                // Add original purchase value as starting point if we have bikes
+                if (totalOriginalValue > 0 && (valuationHistory.length === 0 || timeFilter === 'all')) {
+                  // Find the earliest bike creation date as proxy for when garage was started
+                  const earliestBike = bikes.reduce((earliest, bike) => {
+                    return earliest && new Date(earliest.created_at || 0) < new Date(bike.created_at || 0) ? earliest : bike;
+                  }, null as any);
                   
-                  // Add original purchase value as starting point if we have bikes and no valuation history yet
-                  if (totalOriginalValue > 0 && (valuationHistory.length === 0 || timeFilter === 'all')) {
-                    // Find the earliest bike creation date as proxy for when garage was started
-                    const earliestBike = bikes.reduce((earliest, bike) => {
-                      return earliest && new Date(earliest.created_at || 0) < new Date(bike.created_at || 0) ? earliest : bike;
-                    }, null as any);
-                    
-                    if (earliestBike) {
-                      chartData.push({
-                        date: new Date(earliestBike.created_at || Date.now()).toLocaleDateString(),
-                        value: totalOriginalValue,
-                        type: 'original'
-                      });
-                    }
+                  if (earliestBike) {
+                    chartData.push({
+                      date: new Date(earliestBike.created_at || Date.now()).toLocaleDateString(),
+                      value: totalOriginalValue,
+                      type: 'original'
+                    });
                   }
+                }
 
-                  // Add filtered valuation history
-                  const filteredHistory = valuationHistory.filter(entry => 
-                    new Date(entry.created_at) >= filterDate
+                // Add filtered valuation history
+                const filteredHistory = valuationHistory.filter(entry => 
+                  new Date(entry.created_at) >= filterDate
+                );
+
+                chartData = [...chartData, ...filteredHistory.map(entry => ({
+                  date: new Date(entry.created_at).toLocaleDateString(),
+                  value: entry.total_estimated_value,
+                  type: 'estimated'
+                }))];
+
+                if (chartData.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center text-muted-foreground">
+                        <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No valuation data available</p>
+                        <p className="text-xs">Add bike prices and get valuations to see the chart</p>
+                      </div>
+                    </div>
                   );
+                }
 
-                  chartData = [...chartData, ...filteredHistory.map(entry => ({
-                    date: new Date(entry.created_at).toLocaleDateString(),
-                    value: entry.total_estimated_value,
-                    type: 'estimated'
-                  }))];
-
-                  return chartData;
-                })()}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    dataKey="date" 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `€${value.toLocaleString()}`}
-                  />
-                  <Tooltip 
-                    formatter={(value: number, name: string, props: any) => [
-                      `€${value.toLocaleString()}`, 
-                      props.payload.type === 'original' ? 'Original Value' : 'Estimated Value'
-                    ]}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    dot={(props: any) => (
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={4}
-                        fill={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
-                        strokeWidth={2}
-                        stroke={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
+                return (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis 
+                        dataKey="date" 
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
                       />
-                    )}
-                    activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                      <YAxis 
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `€${value.toLocaleString()}`}
+                      />
+                      <Tooltip 
+                        formatter={(value: number, name: string, props: any) => [
+                          `€${value.toLocaleString()}`, 
+                          props.payload.type === 'original' ? 'Original Value' : 'Estimated Value'
+                        ]}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={(props: any) => (
+                          <circle
+                            cx={props.cx}
+                            cy={props.cy}
+                            r={4}
+                            fill={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
+                            strokeWidth={2}
+                            stroke={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
+                          />
+                        )}
+                        activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                );
+              })()}
             </div>
           </div>
         )}
