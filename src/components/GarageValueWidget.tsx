@@ -353,7 +353,7 @@ export const GarageValueWidget = () => {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Button 
             onClick={valuateAllBikes}
             disabled={isValuating || bikes.length === 0 || !canValuate}
@@ -424,42 +424,98 @@ export const GarageValueWidget = () => {
                   )
                 );
 
-                let chartData = [];
+                // Create individual bike data with unique colors
+                const colors = [
+                  'hsl(var(--primary))',
+                  'hsl(var(--destructive))', 
+                  'hsl(var(--warning))',
+                  'hsl(var(--success))',
+                  '#8B5CF6', // Purple
+                  '#F59E0B', // Amber
+                  '#10B981', // Emerald
+                  '#3B82F6', // Blue
+                  '#EF4444', // Red
+                  '#6366F1'  // Indigo
+                ];
+
+                const bikesWithData = bikes.filter(bike => bike.price && bike.purchase_date);
                 
-                // Add original purchase value as starting point if we have bikes
-                if (totalOriginalValue > 0 && (valuationHistory.length === 0 || timeFilter === 'all')) {
-                  // Find the earliest bike creation date as proxy for when garage was started
-                  const earliestBike = bikes.reduce((earliest, bike) => {
-                    return earliest && new Date(earliest.created_at || 0) < new Date(bike.created_at || 0) ? earliest : bike;
-                  }, null as any);
-                  
-                  if (earliestBike) {
-                    chartData.push({
-                      date: new Date(earliestBike.created_at || Date.now()).toLocaleDateString(),
-                      value: totalOriginalValue,
-                      type: 'original'
-                    });
-                  }
+                if (bikesWithData.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center text-muted-foreground">
+                        <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No bike value data available</p>
+                        <p className="text-xs">Add purchase prices and dates to bikes to see the chart</p>
+                      </div>
+                    </div>
+                  );
                 }
 
-                // Add filtered valuation history
-                const filteredHistory = valuationHistory.filter(entry => 
-                  new Date(entry.created_at) >= filterDate
-                );
+                // Create timeline data combining all bikes
+                const allDataPoints = [];
 
-                chartData = [...chartData, ...filteredHistory.map(entry => ({
-                  date: new Date(entry.created_at).toLocaleDateString(),
-                  value: entry.total_estimated_value,
-                  type: 'estimated'
-                }))];
+                bikesWithData.forEach((bike, index) => {
+                  const bikeColor = colors[index % colors.length];
+                  
+                  // Add purchase point if date is within filter
+                  if (bike.purchase_date && new Date(bike.purchase_date) >= filterDate) {
+                    allDataPoints.push({
+                      date: bike.purchase_date,
+                      timestamp: new Date(bike.purchase_date).getTime(),
+                      [`${bike.name}`]: bike.price,
+                      bikeId: bike.id,
+                      bikeName: bike.name,
+                      color: bikeColor
+                    });
+                  }
+
+                  // Add valuation points for this bike
+                  const filteredBikeValuations = bikeValuations.filter(val => 
+                    val.bike_id === bike.id && 
+                    new Date(val.valuation_date) >= filterDate
+                  );
+
+                  filteredBikeValuations.forEach(val => {
+                    allDataPoints.push({
+                      date: val.valuation_date.split('T')[0],
+                      timestamp: new Date(val.valuation_date).getTime(),
+                      [`${bike.name}`]: val.estimated_value,
+                      bikeId: bike.id,
+                      bikeName: bike.name,
+                      color: bikeColor
+                    });
+                  });
+                });
+
+                // Group by date and merge values
+                const dateGroups = allDataPoints.reduce((acc, point) => {
+                  const date = point.date;
+                  if (!acc[date]) {
+                    acc[date] = { 
+                      date, 
+                      timestamp: point.timestamp,
+                      bikes: {}
+                    };
+                  }
+                  acc[date].bikes[point.bikeName] = point[point.bikeName];
+                  return acc;
+                }, {} as any);
+
+                const chartData = Object.values(dateGroups)
+                  .sort((a: any, b: any) => a.timestamp - b.timestamp)
+                  .map((group: any) => ({
+                    date: new Date(group.date).toLocaleDateString(),
+                    ...group.bikes
+                  }));
 
                 if (chartData.length === 0) {
                   return (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center text-muted-foreground">
                         <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No valuation data available</p>
-                        <p className="text-xs">Add bike prices and get valuations to see the chart</p>
+                        <p className="text-sm">No data for selected period</p>
+                        <p className="text-xs">Try selecting a different time range</p>
                       </div>
                     </div>
                   );
@@ -482,9 +538,9 @@ export const GarageValueWidget = () => {
                         tickFormatter={(value) => `€${value.toLocaleString()}`}
                       />
                       <Tooltip 
-                        formatter={(value: number, name: string, props: any) => [
+                        formatter={(value: number, name: string) => [
                           `€${value.toLocaleString()}`, 
-                          props.payload.type === 'original' ? 'Original Value' : 'Estimated Value'
+                          name
                         ]}
                         labelStyle={{ color: 'hsl(var(--foreground))' }}
                         contentStyle={{ 
@@ -493,23 +549,18 @@ export const GarageValueWidget = () => {
                           borderRadius: '6px'
                         }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={2}
-                        dot={(props: any) => (
-                          <circle
-                            cx={props.cx}
-                            cy={props.cy}
-                            r={4}
-                            fill={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
-                            strokeWidth={2}
-                            stroke={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
-                          />
-                        )}
-                        activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
-                      />
+                      {bikesWithData.map((bike, index) => (
+                        <Line 
+                          key={bike.id}
+                          type="monotone" 
+                          dataKey={bike.name}
+                          stroke={colors[index % colors.length]}
+                          strokeWidth={2}
+                          dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6 }}
+                          connectNulls={false}
+                        />
+                      ))}
                     </LineChart>
                   </ResponsiveContainer>
                 );
