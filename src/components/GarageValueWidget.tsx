@@ -76,7 +76,7 @@ export const GarageValueWidget = () => {
     try {
       const { data, error } = await supabase
         .from('bikes')
-        .select('id, name, brand, model, year, estimated_value, last_valuation_date, price, created_at')
+        .select('id, name, brand, model, year, estimated_value, last_valuation_date, price, purchase_date, created_at')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -117,29 +117,8 @@ export const GarageValueWidget = () => {
   };
 
   const checkCanValuate = async () => {
-    if (!user) return;
-
-    try {
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3.5);
-
-      const { data, error } = await supabase
-        .from('bikes')
-        .select('last_valuation_date')
-        .eq('user_id', user.id)
-        .gte('last_valuation_date', threeDaysAgo.toISOString())
-        .limit(1);
-
-      if (error) {
-        console.error('Error checking rate limit:', error);
-        setCanValuate(true);
-      } else {
-        setCanValuate(!data || data.length === 0);
-      }
-    } catch (error) {
-      console.error('Error checking rate limit:', error);
-      setCanValuate(true);
-    }
+    // Rate limiting disabled per user request
+    setCanValuate(true);
   };
 
   const saveValuationHistory = async (estimatedValue: number, bikesValued: number) => {
@@ -178,14 +157,19 @@ export const GarageValueWidget = () => {
       if (error) throw error;
 
       if (data.success) {
-        // Save individual bike valuation
-        await supabase
+        // Save individual bike valuation to bike_valuations table
+        const { error: valuationError } = await supabase
           .from('bike_valuations')
           .insert({
             bike_id: bikeId,
             estimated_value: data.estimatedValue,
-            valuation_source: 'automated'
+            valuation_source: 'automated',
+            valuation_date: new Date().toISOString()
           });
+
+        if (valuationError) {
+          console.error('Error saving bike valuation:', valuationError);
+        }
         
         toast.success(`Bike valued at €${data.estimatedValue}`);
         return { success: true, estimatedValue: data.estimatedValue };

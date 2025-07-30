@@ -35,24 +35,8 @@ serve(async (req) => {
     const requestBody = await req.json();
     const { bikeId, skipRateLimit, batchComplete, totalEstimatedValue, totalBikesValued } = requestBody;
 
-    // Check rate limiting - only allow valuation twice per week (3.5 days between valuations)
-    if (!skipRateLimit) {
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3.5);
-
-      const { data: recentValuations, error: rateLimitError } = await supabase
-        .from('bikes')
-        .select('last_valuation_date')
-        .eq('user_id', user.id)
-        .gte('last_valuation_date', threeDaysAgo.toISOString())
-        .limit(1);
-
-      if (rateLimitError) {
-        console.error('Error checking rate limit:', rateLimitError);
-      } else if (recentValuations && recentValuations.length > 0) {
-        throw new Error('Rate limit exceeded. You can only valuate your garage twice per week.');
-      }
-    }
+    // Rate limiting disabled per user request
+    console.log('Rate limiting disabled - proceeding with valuation');
     
     // Get bike details
     const { data: bike, error: bikeError } = await supabase
