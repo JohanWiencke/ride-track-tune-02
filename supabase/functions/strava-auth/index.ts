@@ -17,11 +17,6 @@ serve(async (req) => {
   }
 
   try {
-    // Check environment variables
-    if (!supabaseUrl || !supabaseKey || !stravaClientId || !stravaClientSecret) {
-      throw new Error('Missing environment variables');
-    }
-
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const authHeader = req.headers.get('Authorization');
@@ -31,20 +26,31 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) throw new Error('Invalid token');
 
-    const { action, code } = await req.json();
+    // Safely parse JSON body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      throw new Error('Failed to parse JSON body');
+    }
+
+    const action = body.action;
+    const code = body.code;
+
+    console.log('Action:', action, 'Code:', code);
 
     if (action === 'get_auth_url') {
-      const origin = req.headers.get('origin') || '';
+      const origin = req.headers.get('origin') ?? ''; // fallback if origin missing
       const redirectUri = `${origin}/strava-callback`;
       const scope = 'read,read_all,activity:read_all,activity:read';
-      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
+      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     if (action === 'exchange_code') {
-      if (!code) throw new Error('Missing code for exchange');
+      if (!code) throw new Error('Missing code for exchange_code');
 
       const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
@@ -73,7 +79,6 @@ serve(async (req) => {
 
       if (updateError) throw new Error(`DB update failed: ${updateError.message}`);
 
-      // Optionally return athlete info here to help frontend display the name immediately
       return new Response(JSON.stringify({ success: true, athlete: tokenData.athlete }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -95,6 +100,7 @@ serve(async (req) => {
 
     throw new Error('Invalid action');
   } catch (e) {
+    console.error('Error in strava-auth:', e);
     return new Response(JSON.stringify({ success: false, error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
