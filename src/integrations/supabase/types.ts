@@ -268,6 +268,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           id: string
+          strava_access_token: string | null
           updated_at: string
           user_id: string
         }
@@ -275,6 +276,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           id?: string
+          strava_access_token?: string | null
           updated_at?: string
           user_id: string
         }
@@ -282,6 +284,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           id?: string
+          strava_access_token?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -289,33 +292,92 @@ export type Database = {
       }
       receipts: {
         Row: {
+          analysis_result: Json | null
           analysis_status: string
           created_at: string
           id: string
           image_url: string
           original_filename: string
+          purchase_date: string | null
+          store_name: string | null
+          total_amount: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          analysis_result?: Json | null
           analysis_status?: string
           created_at?: string
           id?: string
           image_url: string
           original_filename: string
+          purchase_date?: string | null
+          store_name?: string | null
+          total_amount?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          analysis_result?: Json | null
           analysis_status?: string
           created_at?: string
           id?: string
           image_url?: string
           original_filename?: string
+          purchase_date?: string | null
+          store_name?: string | null
+          total_amount?: number | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      strava_activities: {
+        Row: {
+          activity_id: number
+          activity_type: string | null
+          bike_id: string | null
+          created_at: string
+          distance: number | null
+          id: string
+          name: string | null
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: number
+          activity_type?: string | null
+          bike_id?: string | null
+          created_at?: string
+          distance?: number | null
+          id?: string
+          name?: string | null
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: number
+          activity_type?: string | null
+          bike_id?: string | null
+          created_at?: string
+          distance?: number | null
+          id?: string
+          name?: string | null
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strava_activities_bike_id_fkey"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       valuation_history: {
         Row: {
