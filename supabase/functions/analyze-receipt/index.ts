@@ -27,9 +27,16 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const ocrApiKey = Deno.env.get('OCR_SPACE_API_KEY')!;
+    
+    if (!ocrApiKey) {
+      throw new Error('OCR_SPACE_API_KEY is not configured');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Analyzing receipt:', receiptId);
+    console.log('Image URL:', imageUrl);
+    console.log('OCR API Key present:', !!ocrApiKey);
 
     // Get receipt data
     const { data: receipt, error: receiptError } = await supabase
@@ -56,187 +63,206 @@ serve(async (req) => {
     ocrFormData.append('detectOrientation', 'true');
     ocrFormData.append('scale', 'true');
     ocrFormData.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
+    ocrFormData.append('filetype', 'auto');
 
     const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
       body: ocrFormData,
     });
 
-    const ocrResult = await ocrResponse.json();
-
-    if (!ocrResult.IsErroredOnProcessing && ocrResult.ParsedResults && ocrResult.ParsedResults.length > 0) {
-      const extractedText = ocrResult.ParsedResults[0].ParsedText;
-      console.log('OCR extracted text:', extractedText);
-
-      // Parse the extracted text to identify items, prices, and store info
-      const analysisResults = parseReceiptText(extractedText);
-      
-      // Calculate total amount
-      const totalAmount = analysisResults.items.reduce((sum, item) => sum + item.total_price, 0);
-
-      // Update receipt with analysis results
-      const { error: updateError } = await supabase
-        .from('receipts')
-        .update({
-          analysis_status: 'completed',
-          analysis_result: analysisResults.items,
-          total_amount: totalAmount || analysisResults.totalFromText,
-          store_name: analysisResults.storeName,
-          purchase_date: analysisResults.date || new Date().toISOString().split('T')[0],
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', receiptId);
-
-      if (updateError) {
-        console.error('Failed to update receipt:', updateError);
-        throw updateError;
-      }
-
-      // Get component types to match against
-      const { data: componentTypes, error: typesError } = await supabase
-        .from('component_types')
-        .select('*');
-
-      if (typesError) {
-        console.error('Failed to get component types:', typesError);
-        throw typesError;
-      }
-
-      // Add items to inventory
-      const inventoryItems = [];
-      
-      for (const item of analysisResults.items) {
-        let componentTypeId = null;
-        
-        const itemNameLower = item.name.toLowerCase();
-        const itemCategoryLower = item.category.toLowerCase();
-        
-        // Enhanced matching logic for various bike shop items
-        for (const type of componentTypes || []) {
-          const typeNameLower = type.name.toLowerCase();
-          
-          // Direct category matches
-          if (typeNameLower.includes(itemCategoryLower) || 
-              itemCategoryLower.includes(typeNameLower)) {
-            componentTypeId = type.id;
-            break;
-          }
-          
-          // Specific item matching (multilingual)
-          if (
-            // Chain related
-            (itemNameLower.includes('chain') || itemNameLower.includes('kette') || itemNameLower.includes('chaîne')) && 
-            (typeNameLower.includes('chain') || typeNameLower.includes('kette')) ||
-            
-            // Brake related
-            (itemNameLower.includes('brake') || itemNameLower.includes('bremse') || itemNameLower.includes('frein')) &&
-            (typeNameLower.includes('brake') || typeNameLower.includes('bremse')) ||
-            
-            // Tire/tube related
-            (itemNameLower.includes('tire') || itemNameLower.includes('tube') || itemNameLower.includes('reifen') || 
-             itemNameLower.includes('schlauch') || itemNameLower.includes('pneu') || itemNameLower.includes('chambre')) &&
-            (typeNameLower.includes('tire') || typeNameLower.includes('tube')) ||
-            
-            // Pedal related
-            (itemNameLower.includes('pedal') || itemNameLower.includes('pédale')) &&
-            (typeNameLower.includes('pedal')) ||
-            
-            // General component matching
-            itemNameLower.includes(typeNameLower) || typeNameLower.includes(itemNameLower.split(' ')[0])
-          ) {
-            componentTypeId = type.id;
-            break;
-          }
-        }
-
-        // Fallback matching strategy
-        if (!componentTypeId && componentTypes && componentTypes.length > 0) {
-          // Skip shipping costs
-          if (itemCategoryLower === 'shipping' || itemNameLower.includes('versand') || 
-              itemNameLower.includes('shipping') || itemNameLower.includes('livraison')) {
-            continue;
-          }
-          
-          // Look for generic/accessories category
-          const genericType = componentTypes.find(type => 
-            type.name.toLowerCase().includes('accessories') ||
-            type.name.toLowerCase().includes('parts') ||
-            type.name.toLowerCase().includes('misc') ||
-            type.name.toLowerCase().includes('general')
-          );
-          
-          if (genericType) {
-            componentTypeId = genericType.id;
-          } else {
-            // Use first available component type as fallback
-            componentTypeId = componentTypes[0].id;
-          }
-        }
-
-        if (componentTypeId) {
-          inventoryItems.push({
-            user_id: receipt.user_id,
-            component_type_id: componentTypeId,
-            quantity: item.quantity,
-            purchase_price: item.unit_price,
-            receipt_id: receiptId,
-            notes: `Auto-added from receipt: ${item.name} (${item.category})`
-          });
-        }
-      }
-
-      // Insert inventory items
-      if (inventoryItems.length > 0) {
-        const { error: inventoryError } = await supabase
-          .from('parts_inventory')
-          .insert(inventoryItems);
-
-        if (inventoryError) {
-          console.error('Failed to add inventory items:', inventoryError);
-          // Don't throw error, as the receipt was analyzed successfully
-        } else {
-          console.log(`Added ${inventoryItems.length} items to inventory`);
-        }
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          itemsAdded: inventoryItems.length,
-          totalAmount: totalAmount || analysisResults.totalFromText,
-          storeName: analysisResults.storeName,
-          itemsFound: analysisResults.items.length,
-          ocrText: extractedText.substring(0, 200) + '...' // First 200 chars for debugging
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-
-    } else {
-      console.error('OCR failed:', ocrResult);
-      throw new Error('OCR analysis failed: ' + (ocrResult.ErrorMessage || 'Unknown error'));
+    if (!ocrResponse.ok) {
+      console.error('OCR API request failed:', ocrResponse.status, ocrResponse.statusText);
+      throw new Error(`OCR API request failed: ${ocrResponse.status} ${ocrResponse.statusText}`);
     }
+
+    const ocrResult = await ocrResponse.json();
+    console.log('OCR Result:', JSON.stringify(ocrResult, null, 2));
+
+    if (ocrResult.IsErroredOnProcessing) {
+      console.error('OCR processing error:', ocrResult.ErrorMessage);
+      throw new Error(`OCR processing failed: ${ocrResult.ErrorMessage}`);
+    }
+
+    if (!ocrResult.ParsedResults || ocrResult.ParsedResults.length === 0) {
+      console.error('No parsed results from OCR');
+      throw new Error('No text could be extracted from the image');
+    }
+
+    const extractedText = ocrResult.ParsedResults[0].ParsedText;
+    console.log('OCR extracted text:', extractedText);
+
+    if (!extractedText || extractedText.trim() === '') {
+      console.error('Empty text extracted from OCR');
+      throw new Error('No text could be extracted from the image');
+    }
+
+    // Parse the extracted text to identify items, prices, and store info
+    const analysisResults = parseReceiptText(extractedText);
+    
+    // Calculate total amount
+    const totalAmount = analysisResults.items.reduce((sum, item) => sum + item.total_price, 0);
+
+    // Update receipt with analysis results
+    const { error: updateError } = await supabase
+      .from('receipts')
+      .update({
+        analysis_status: 'completed',
+        analysis_result: analysisResults.items,
+        total_amount: totalAmount || analysisResults.totalFromText,
+        store_name: analysisResults.storeName,
+        purchase_date: analysisResults.date || new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', receiptId);
+
+    if (updateError) {
+      console.error('Failed to update receipt:', updateError);
+      throw updateError;
+    }
+
+    // Get component types to match against
+    const { data: componentTypes, error: typesError } = await supabase
+      .from('component_types')
+      .select('*');
+
+    if (typesError) {
+      console.error('Failed to get component types:', typesError);
+      throw typesError;
+    }
+
+    // Add items to inventory
+    const inventoryItems = [];
+    
+    for (const item of analysisResults.items) {
+      let componentTypeId = null;
+      
+      const itemNameLower = item.name.toLowerCase();
+      const itemCategoryLower = item.category.toLowerCase();
+      
+      // Enhanced matching logic for various bike shop items
+      for (const type of componentTypes || []) {
+        const typeNameLower = type.name.toLowerCase();
+        
+        // Direct category matches
+        if (typeNameLower.includes(itemCategoryLower) || 
+            itemCategoryLower.includes(typeNameLower)) {
+          componentTypeId = type.id;
+          break;
+        }
+        
+        // Specific item matching (multilingual)
+        if (
+          // Chain related
+          (itemNameLower.includes('chain') || itemNameLower.includes('kette') || itemNameLower.includes('chaîne')) && 
+          (typeNameLower.includes('chain') || typeNameLower.includes('kette')) ||
+          
+          // Brake related
+          (itemNameLower.includes('brake') || itemNameLower.includes('bremse') || itemNameLower.includes('frein')) &&
+          (typeNameLower.includes('brake') || typeNameLower.includes('bremse')) ||
+          
+          // Tire/tube related
+          (itemNameLower.includes('tire') || itemNameLower.includes('tube') || itemNameLower.includes('reifen') || 
+           itemNameLower.includes('schlauch') || itemNameLower.includes('pneu') || itemNameLower.includes('chambre')) &&
+          (typeNameLower.includes('tire') || typeNameLower.includes('tube')) ||
+          
+          // Pedal related
+          (itemNameLower.includes('pedal') || itemNameLower.includes('pédale')) &&
+          (typeNameLower.includes('pedal')) ||
+          
+          // General component matching
+          itemNameLower.includes(typeNameLower) || typeNameLower.includes(itemNameLower.split(' ')[0])
+        ) {
+          componentTypeId = type.id;
+          break;
+        }
+      }
+
+      // Fallback matching strategy
+      if (!componentTypeId && componentTypes && componentTypes.length > 0) {
+        // Skip shipping costs
+        if (itemCategoryLower === 'shipping' || itemNameLower.includes('versand') || 
+            itemNameLower.includes('shipping') || itemNameLower.includes('livraison')) {
+          continue;
+        }
+        
+        // Look for generic/accessories category
+        const genericType = componentTypes.find(type => 
+          type.name.toLowerCase().includes('accessories') ||
+          type.name.toLowerCase().includes('parts') ||
+          type.name.toLowerCase().includes('misc') ||
+          type.name.toLowerCase().includes('general')
+        );
+        
+        if (genericType) {
+          componentTypeId = genericType.id;
+        } else {
+          // Use first available component type as fallback
+          componentTypeId = componentTypes[0].id;
+        }
+      }
+
+      if (componentTypeId) {
+        inventoryItems.push({
+          user_id: receipt.user_id,
+          component_type_id: componentTypeId,
+          quantity: item.quantity,
+          purchase_price: item.unit_price,
+          receipt_id: receiptId,
+          notes: `Auto-added from receipt: ${item.name} (${item.category})`
+        });
+      }
+    }
+
+    // Insert inventory items
+    if (inventoryItems.length > 0) {
+      const { error: inventoryError } = await supabase
+        .from('parts_inventory')
+        .insert(inventoryItems);
+
+      if (inventoryError) {
+        console.error('Failed to add inventory items:', inventoryError);
+        // Don't throw error, as the receipt was analyzed successfully
+      } else {
+        console.log(`Added ${inventoryItems.length} items to inventory`);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        itemsAdded: inventoryItems.length,
+        totalAmount: totalAmount || analysisResults.totalFromText,
+        storeName: analysisResults.storeName,
+        itemsFound: analysisResults.items.length,
+        ocrText: extractedText.substring(0, 200) + '...' // First 200 chars for debugging
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
   } catch (error) {
     console.error('Receipt analysis error:', error);
     
     // Try to update receipt status to failed
     try {
-      const requestBody = await req.clone().json();
-      if (requestBody.receiptId) {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      // Parse the request body to get receiptId
+      const url = new URL(req.url);
+      const receiptId = url.searchParams.get('receiptId');
+      
+      if (receiptId) {
         await supabase
           .from('receipts')
           .update({ 
             analysis_status: 'failed',
             updated_at: new Date().toISOString()
           })
-          .eq('id', requestBody.receiptId);
+          .eq('id', receiptId);
       }
     } catch (updateError) {
       console.error('Failed to update receipt status:', updateError);
