@@ -339,44 +339,50 @@ export const GarageValueWidget = () => {
           </div>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2">
           <Button 
             onClick={valuateAllBikes}
             disabled={isValuating || bikes.length === 0 || !canValuate}
-            className="flex-1"
+            className="w-full"
             variant="outline"
           >
             {isValuating ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Valuating...
+                <span className="hidden sm:inline">Valuating...</span>
+                <span className="sm:hidden">Valuating...</span>
               </>
             ) : (
               <>
                 <DollarSign className="w-4 h-4 mr-2" />
-                {valuedBikesCount === 0 ? 'Get Market Valuation' : 'Update Valuations'}
+                <span className="hidden sm:inline">{valuedBikesCount === 0 ? 'Get Market Valuation' : 'Update Valuations'}</span>
+                <span className="sm:hidden">{valuedBikesCount === 0 ? 'Valuate' : 'Update'}</span>
               </>
             )}
           </Button>
           
-          <Button
-            onClick={updateGarageValue}
-            disabled={loading}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Update
-          </Button>
-          
-          <Button
-            onClick={() => setShowChart(!showChart)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Value overtime
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={updateGarageValue}
+              disabled={loading}
+              variant="outline"
+              className="flex-1 text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''} mr-2`} />
+              <span className="hidden sm:inline">Update</span>
+              <span className="sm:hidden">↻</span>
+            </Button>
+            
+            <Button
+              onClick={() => setShowChart(!showChart)}
+              variant="outline"
+              className="flex-1 text-sm"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Value overtime</span>
+              <span className="sm:hidden">Chart</span>
+            </Button>
+          </div>
         </div>
 
         {showChart && (

@@ -265,9 +265,9 @@ const Dashboard = () => {
       <div className="container py-4 space-y-6">
         <TimeBasedGreeting />
         {/* Compact Layout: Strava + Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Integration - Takes 2 columns on large screens */}
-          <div className="lg:col-span-2 grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4">
+          {/* Mobile-optimized Strava Integration */}
+          <div className="w-full">
             <StravaConnect 
               isConnected={isStravaConnected} 
               onConnectionChange={(connected) => {
@@ -282,9 +282,9 @@ const Dashboard = () => {
             />
           </div>
           
-          {/* Quick Stats - Takes 3 columns on large screens, stacks on smaller */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Quick Stats - Mobile responsive grid */}
+          <div className="w-full">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">{/* stats cards stay the same */}
               {/* Enhanced Liquid Glass Bike Widget */}
               <div className="relative group animate-float">
                 <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/40 via-glass-purple/30 to-glass-blue/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
@@ -417,7 +417,7 @@ const Dashboard = () => {
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {bikes.map((bike) => {
               const bikeComponents = getBikeComponents(bike.id);
               const needsAttention = bikeComponents.filter(c => {
@@ -438,36 +438,37 @@ const Dashboard = () => {
                     </div>
                   )}
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{bike.name}</CardTitle>
-                      <div className="flex gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-lg leading-tight">{bike.name}</CardTitle>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setEditingBike(bike)}
-                          className="gap-1"
+                          className="gap-1 text-xs px-2 py-1"
                         >
                           <Edit className="h-3 w-3" />
-                          {t('edit')}
+                          <span className="hidden sm:inline">{t('edit')}</span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedBike(bike)}
-                          className="gap-1"
+                          className="gap-1 text-xs px-2 py-1"
                         >
                           <Settings className="h-3 w-3" />
-                          {t('manageParts')}
+                          <span className="hidden sm:inline">{t('manageParts')}</span>
+                          <span className="sm:hidden">Parts</span>
                         </Button>
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       {bike.brand && bike.model && (
-                        <p>{bike.brand} {bike.model}</p>
+                        <p className="truncate">{bike.brand} {bike.model}</p>
                       )}
-                      <div className="flex gap-4">
-                        {bike.weight && <span>Weight: {bike.weight}kg</span>}
-                        {bike.price && <span>Value: €{bike.price.toFixed(0)}</span>}
+                      <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+                        {bike.weight && <span className="text-xs sm:text-sm">Weight: {bike.weight}kg</span>}
+                        {bike.price && <span className="text-xs sm:text-sm">Value: €{bike.price.toFixed(0)}</span>}
                       </div>
                     </div>
                   </CardHeader>
