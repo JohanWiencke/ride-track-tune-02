@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, RefreshCw, Calendar, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { DollarSign, RefreshCw, Calendar, TrendingUp, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useTranslation } from "@/hooks/useTranslation";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -21,53 +21,15 @@ interface Bike {
   purchase_date?: string;
 }
 
-interface BikeValuation {
-  id: string;
-  bike_id: string;
-  valuation_date: string;
-  estimated_value: number;
-  valuation_source: string;
-}
-
-interface ValuationHistory {
-  id: string;
-  total_estimated_value: number;
-  total_bikes_valued: number;
-  created_at: string;
-}
-
 export const GarageValueWidget = () => {
   const { user } = useAuth();
-  const { t } = useTranslation();
   const [bikes, setBikes] = useState<Bike[]>([]);
-  const [bikeValuations, setBikeValuations] = useState<BikeValuation[]>([]);
   const [isValuating, setIsValuating] = useState(false);
   const [totalEstimatedValue, setTotalEstimatedValue] = useState(0);
   const [totalOriginalValue, setTotalOriginalValue] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [valuationHistory, setValuationHistory] = useState<ValuationHistory[]>([]);
   const [showChart, setShowChart] = useState(false);
   const [canValuate, setCanValuate] = useState(true);
-
-  const fetchBikeValuations = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('bike_valuations')
-        .select(`
-          *,
-          bikes!inner(user_id, name, brand, model)
-        `)
-        .eq('bikes.user_id', user.id)
-        .order('valuation_date', { ascending: true });
-
-      if (error) throw error;
-      setBikeValuations(data || []);
-    } catch (error) {
-      console.error('Error fetching bike valuations:', error);
-    }
-  };
 
   const fetchBikes = async () => {
     if (!user) return;
@@ -95,23 +57,6 @@ export const GarageValueWidget = () => {
       toast.error("Failed to fetch bike data");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchValuationHistory = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('valuation_history')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setValuationHistory(data || []);
-    } catch (error) {
-      console.error('Error fetching valuation history:', error);
     }
   };
 
@@ -156,28 +101,6 @@ export const GarageValueWidget = () => {
     }
   };
 
-  const saveValuationHistory = async (estimatedValue: number, bikesValued: number) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('valuation_history')
-        .insert({
-          user_id: user.id,
-          total_estimated_value: estimatedValue,
-          total_bikes_valued: bikesValued
-        });
-
-      if (error) {
-        console.error('Error saving valuation history:', error);
-      } else {
-        await fetchValuationHistory();
-      }
-    } catch (error) {
-      console.error('Error saving valuation history:', error);
-    }
-  };
-
   const valuateBike = async (bikeId: string, isLastBike: boolean = false, totalEstimated: number = 0, bikesValued: number = 0) => {
     try {
       const { data, error } = await supabase.functions.invoke('bike-valuation', {
@@ -204,9 +127,6 @@ export const GarageValueWidget = () => {
 
         if (valuationError) {
           console.error('Error saving bike valuation:', valuationError);
-        } else {
-          // Immediately refresh bike valuations to update the chart
-          await fetchBikeValuations();
         }
         
         toast.success(`Bike valued at €${data.estimatedValue}`);
@@ -248,7 +168,6 @@ export const GarageValueWidget = () => {
       }
       
       await fetchBikes();
-      await fetchBikeValuations();
       toast.success('Garage value updated!');
     } catch (error) {
       console.error('Error updating garage value:', error);
@@ -287,16 +206,12 @@ export const GarageValueWidget = () => {
     
     // Refresh data and rate limit check
     await fetchBikes();
-    await fetchBikeValuations();
-    await fetchValuationHistory();
     await checkCanValuate(); // Re-check rate limit after valuation
   };
 
   useEffect(() => {
     if (user) {
       fetchBikes();
-      fetchBikeValuations();
-      fetchValuationHistory();
     }
   }, [user]);
 
@@ -422,175 +337,13 @@ export const GarageValueWidget = () => {
               <h4 className="text-sm font-medium">Value Over Time</h4>
             </div>
             <div className="h-64">
-              {(() => {
-                // Always show full timeline from first bike purchase to today
-                const bikesWithData = bikes.filter(bike => bike.price && bike.purchase_date);
-                
-                if (bikesWithData.length === 0) {
-                  return (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center text-muted-foreground">
-                        <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No bike value data available</p>
-                        <p className="text-xs">Add purchase prices and dates to bikes to see the chart</p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                console.log('Building chart with bikes:', bikesWithData);
-                console.log('Available valuations:', bikeValuations);
-
-                // Create bike data with unique colors
-                const colors = [
-                  'hsl(var(--primary))',
-                  'hsl(var(--destructive))', 
-                  'hsl(var(--warning))',
-                  'hsl(var(--success))',
-                  '#8B5CF6', // Purple
-                  '#F59E0B', // Amber
-                  '#10B981', // Emerald
-                  '#3B82F6', // Blue
-                  '#EF4444', // Red
-                  '#6366F1'  // Indigo
-                ];
-
-                // Create timeline data for each bike
-                const bikeTimelines = bikesWithData.map((bike, index) => {
-                  const bikeColor = colors[index % colors.length];
-                  const dataPoints = [];
-
-                  // Always add purchase point (start of timeline)
-                  const purchaseDate = new Date(bike.purchase_date!);
-                  dataPoints.push({
-                    date: bike.purchase_date!,
-                    timestamp: purchaseDate.getTime(),
-                    value: bike.price!,
-                    type: 'purchase'
-                  });
-
-                  // Add all valuation points for this bike
-                  const bikeValuationsForThisBike = bikeValuations.filter(val => val.bike_id === bike.id);
-                  bikeValuationsForThisBike.forEach(val => {
-                    dataPoints.push({
-                      date: val.valuation_date,
-                      timestamp: new Date(val.valuation_date).getTime(),
-                      value: val.estimated_value,
-                      type: 'valuation'
-                    });
-                  });
-
-                  // Sort points by timestamp
-                  dataPoints.sort((a, b) => a.timestamp - b.timestamp);
-
-                  return {
-                    bike,
-                    color: bikeColor,
-                    dataPoints
-                  };
-                });
-
-                // Get all unique timestamps for the chart, always include today
-                const allTimestamps = new Set<number>();
-                bikeTimelines.forEach(timeline => {
-                  timeline.dataPoints.forEach(point => {
-                    allTimestamps.add(point.timestamp);
-                  });
-                });
-                
-                // Always add today's timestamp to extend chart to current date
-                const today = new Date();
-                today.setHours(23, 59, 59, 999); // End of today
-                allTimestamps.add(today.getTime());
-
-                const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
-                
-                if (sortedTimestamps.length === 0) {
-                  return (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center text-muted-foreground">
-                        <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No valuation data available</p>
-                        <p className="text-xs">Run a valuation to see value changes over time</p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Build chart data - each timestamp becomes a data point
-                const chartData = sortedTimestamps.map(timestamp => {
-                  const chartPoint: any = {
-                    date: new Date(timestamp).toLocaleDateString(),
-                    timestamp
-                  };
-
-                  // For each bike, find current value at this timestamp
-                  bikeTimelines.forEach(timeline => {
-                    let currentValue = null;
-                    
-                    // Find most recent value for this bike at or before this timestamp
-                    for (let i = timeline.dataPoints.length - 1; i >= 0; i--) {
-                      if (timeline.dataPoints[i].timestamp <= timestamp) {
-                        currentValue = timeline.dataPoints[i].value;
-                        break;
-                      }
-                    }
-
-                    // Only include bikes that have started (purchase date reached)
-                    if (currentValue !== null) {
-                      chartPoint[timeline.bike.name] = currentValue;
-                    }
-                  });
-
-                  return chartPoint;
-                });
-
-                console.log('Chart data:', chartData);
-
-                return (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis 
-                        dataKey="date" 
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis 
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `€${value.toLocaleString()}`}
-                      />
-                      <Tooltip 
-                        formatter={(value: number, name: string) => [
-                          `€${value.toLocaleString()}`, 
-                          name
-                        ]}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '6px'
-                        }}
-                      />
-                      {bikeTimelines.map((timeline, index) => (
-                        <Line 
-                          key={timeline.bike.id}
-                          type="monotone" 
-                          dataKey={timeline.bike.name}
-                          stroke={timeline.color}
-                          strokeWidth={2}
-                          dot={{ fill: timeline.color, strokeWidth: 2, r: 4 }}
-                          activeDot={{ r: 6 }}
-                          connectNulls={false}
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                );
-              })()}
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-muted-foreground">
+                  <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Chart functionality coming soon</p>
+                  <p className="text-xs">Run valuations to see value changes over time</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
