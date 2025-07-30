@@ -13,6 +13,8 @@ const stravaClientId = Deno.env.get('STRAVA_CLIENT_ID')!;
 const stravaClientSecret = Deno.env.get('STRAVA_CLIENT_SECRET')!;
 
 serve(async (req) => {
+  console.log('Strava auth function called:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -40,10 +42,14 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
+      console.error('Auth error:', authError);
       throw new Error('Invalid authentication');
     }
 
+    console.log('Processing request for user:', user.id);
+
     const { action, code } = await req.json();
+    console.log('Action:', action);
 
     if (action === 'get_auth_url') {
       // Generate Strava OAuth URL
@@ -51,12 +57,16 @@ serve(async (req) => {
       const scope = 'read,activity:read_all';
       const authUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
       
+      console.log('Generated auth URL for redirect URI:', redirectUri);
+      
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (action === 'exchange_code') {
+      console.log('Exchanging code for access token');
+      
       // Exchange authorization code for access token
       const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
@@ -78,6 +88,7 @@ serve(async (req) => {
       }
 
       const tokenData = await tokenResponse.json();
+      console.log('Token exchange successful, athlete:', tokenData.athlete?.firstname, tokenData.athlete?.lastname);
       
       // Store tokens in user profile
       const { error: updateError } = await supabase
@@ -94,6 +105,8 @@ serve(async (req) => {
         throw new Error('Failed to store Strava tokens');
       }
 
+      console.log('Successfully stored Strava tokens for user:', user.id);
+
       return new Response(JSON.stringify({ 
         success: true, 
         athlete: tokenData.athlete 
@@ -103,6 +116,8 @@ serve(async (req) => {
     }
 
     if (action === 'disconnect') {
+      console.log('Disconnecting Strava for user:', user.id);
+      
       // Remove Strava tokens from user profile
       const { error: updateError } = await supabase
         .from('profiles')
@@ -117,6 +132,8 @@ serve(async (req) => {
         console.error('Error disconnecting Strava:', updateError);
         throw new Error('Failed to disconnect Strava');
       }
+
+      console.log('Successfully disconnected Strava for user:', user.id);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

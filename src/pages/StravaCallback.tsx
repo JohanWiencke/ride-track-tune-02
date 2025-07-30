@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,18 +34,41 @@ const StravaCallback = () => {
         console.log('StravaCallback: Found code and user, exchanging token');
         try {
           const { data, error } = await supabase.functions.invoke('strava-auth', {
-            body: { action: 'exchange_token', code }
+            body: { action: 'exchange_code', code }
           });
 
           console.log('StravaCallback: Token exchange response', { data, error });
 
           if (error) throw error;
 
-          console.log('StravaCallback: Success, showing toast');
+          console.log('StravaCallback: Success, showing toast and triggering sync');
           toast({
             title: "Strava Connected!",
-            description: `Connected as ${data.athlete.firstname} ${data.athlete.lastname}`,
+            description: `Connected as ${data.athlete.firstname} ${data.athlete.lastname}. Syncing your data...`,
           });
+          
+          // Automatically trigger sync after successful connection
+          try {
+            console.log('StravaCallback: Starting automatic sync...');
+            const { data: syncData, error: syncError } = await supabase.functions.invoke('strava-sync');
+            
+            if (syncError) {
+              console.warn('StravaCallback: Sync failed, but connection was successful', syncError);
+              toast({
+                title: "Sync Warning",
+                description: "Connection successful, but sync failed. You can manually sync later.",
+                variant: "default",
+              });
+            } else {
+              console.log('StravaCallback: Automatic sync successful');
+              toast({
+                title: "Sync Complete",
+                description: "Your Strava bikes and activities have been synced!",
+              });
+            }
+          } catch (syncError) {
+            console.warn('StravaCallback: Auto-sync failed:', syncError);
+          }
           
           // Navigate back with success parameter
           navigate('/?strava_connected=true');
@@ -59,6 +83,13 @@ const StravaCallback = () => {
         }
       } else {
         console.log('StravaCallback: Missing code or user', { code: !!code, user: !!user });
+        if (!user) {
+          toast({
+            title: "Authentication Required",
+            description: "Please sign in to connect Strava.",
+            variant: "destructive",
+          });
+        }
       }
 
       console.log('StravaCallback: Navigating back to home');
