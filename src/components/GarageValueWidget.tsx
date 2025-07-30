@@ -17,6 +17,7 @@ interface Bike {
   estimated_value: number | null;
   last_valuation_date: string | null;
   price: number | null;
+  created_at?: string;
 }
 
 interface ValuationHistory {
@@ -37,6 +38,7 @@ export const GarageValueWidget = () => {
   const [valuationHistory, setValuationHistory] = useState<ValuationHistory[]>([]);
   const [showChart, setShowChart] = useState(false);
   const [canValuate, setCanValuate] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<'2w' | '1m' | '3m' | '6m' | '1y' | 'all'>('all');
 
   const fetchBikes = async () => {
     if (!user) return;
@@ -44,7 +46,7 @@ export const GarageValueWidget = () => {
     try {
       const { data, error } = await supabase
         .from('bikes')
-        .select('id, name, brand, model, year, estimated_value, last_valuation_date, price')
+        .select('id, name, brand, model, year, estimated_value, last_valuation_date, price, created_at')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -52,8 +54,7 @@ export const GarageValueWidget = () => {
       setBikes(data || []);
       
       const estimatedTotal = data?.reduce((sum, bike) => sum + (bike.estimated_value || 0), 0) || 0;
-      // Use estimated total as "original" value for percentage calculation
-      const originalTotal = estimatedTotal;
+      const originalTotal = data?.reduce((sum, bike) => sum + (bike.price || 0), 0) || 0;
       
       setTotalEstimatedValue(estimatedTotal);
       setTotalOriginalValue(originalTotal);
@@ -286,26 +287,81 @@ export const GarageValueWidget = () => {
             )}
           </Button>
           
-          {valuationHistory.length > 1 && (
+          {(valuationHistory.length > 0 || totalOriginalValue > 0) && (
             <Button
               onClick={() => setShowChart(!showChart)}
               variant="outline"
-              size="icon"
+              className="flex items-center gap-2"
             >
               <BarChart3 className="w-4 h-4" />
+              Value overtime
             </Button>
           )}
         </div>
 
-        {showChart && valuationHistory.length > 1 && (
+        {showChart && (valuationHistory.length > 0 || totalOriginalValue > 0) && (
           <div className="mt-4">
-            <h4 className="text-sm font-medium mb-3">Valuation History</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium">Value Over Time</h4>
+              <div className="flex gap-1">
+                {(['2w', '1m', '3m', '6m', '1y', 'all'] as const).map((period) => (
+                  <Button
+                    key={period}
+                    onClick={() => setTimeFilter(period)}
+                    variant={timeFilter === period ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                  >
+                    {period === 'all' ? 'All' : period.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={valuationHistory.map(entry => ({
-                  date: new Date(entry.created_at).toLocaleDateString(),
-                  value: entry.total_estimated_value
-                }))}>
+                <LineChart data={(() => {
+                  const now = new Date();
+                  const filterDate = timeFilter === 'all' ? new Date(0) : new Date(
+                    now.getTime() - (
+                      timeFilter === '2w' ? 14 * 24 * 60 * 60 * 1000 :
+                      timeFilter === '1m' ? 30 * 24 * 60 * 60 * 1000 :
+                      timeFilter === '3m' ? 90 * 24 * 60 * 60 * 1000 :
+                      timeFilter === '6m' ? 180 * 24 * 60 * 60 * 1000 :
+                      365 * 24 * 60 * 60 * 1000
+                    )
+                  );
+
+                  let chartData = [];
+                  
+                  // Add original purchase value as starting point if we have bikes and no valuation history yet
+                  if (totalOriginalValue > 0 && (valuationHistory.length === 0 || timeFilter === 'all')) {
+                    // Find the earliest bike creation date as proxy for when garage was started
+                    const earliestBike = bikes.reduce((earliest, bike) => {
+                      return earliest && new Date(earliest.created_at || 0) < new Date(bike.created_at || 0) ? earliest : bike;
+                    }, null as any);
+                    
+                    if (earliestBike) {
+                      chartData.push({
+                        date: new Date(earliestBike.created_at || Date.now()).toLocaleDateString(),
+                        value: totalOriginalValue,
+                        type: 'original'
+                      });
+                    }
+                  }
+
+                  // Add filtered valuation history
+                  const filteredHistory = valuationHistory.filter(entry => 
+                    new Date(entry.created_at) >= filterDate
+                  );
+
+                  chartData = [...chartData, ...filteredHistory.map(entry => ({
+                    date: new Date(entry.created_at).toLocaleDateString(),
+                    value: entry.total_estimated_value,
+                    type: 'estimated'
+                  }))];
+
+                  return chartData;
+                })()}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis 
                     dataKey="date" 
@@ -320,7 +376,10 @@ export const GarageValueWidget = () => {
                     tickFormatter={(value) => `€${value.toLocaleString()}`}
                   />
                   <Tooltip 
-                    formatter={(value: number) => [`€${value.toLocaleString()}`, 'Estimated Value']}
+                    formatter={(value: number, name: string, props: any) => [
+                      `€${value.toLocaleString()}`, 
+                      props.payload.type === 'original' ? 'Original Value' : 'Estimated Value'
+                    ]}
                     labelStyle={{ color: 'hsl(var(--foreground))' }}
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--background))', 
@@ -333,7 +392,16 @@ export const GarageValueWidget = () => {
                     dataKey="value" 
                     stroke="hsl(var(--primary))" 
                     strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                    dot={(props: any) => (
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={4}
+                        fill={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
+                        strokeWidth={2}
+                        stroke={props.payload.type === 'original' ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))'}
+                      />
+                    )}
                     activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
                   />
                 </LineChart>
