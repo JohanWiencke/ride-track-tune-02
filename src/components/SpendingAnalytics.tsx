@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,10 +66,7 @@ export const SpendingAnalytics = () => {
 
         const { data: receipts, error } = await query;
 
-        if (error) {
-          console.error('Error fetching receipts:', error);
-          continue;
-        }
+        if (error) throw error;
 
         const totalAmount = receipts?.reduce((sum, receipt) => sum + (receipt.total_amount || 0), 0) || 0;
         const receiptsCount = receipts?.length || 0;
@@ -99,20 +95,18 @@ export const SpendingAnalytics = () => {
         .order('created_at', { ascending: false })
         .limit(5);
 
-      if (recentError) {
-        console.error('Error fetching recent purchases:', recentError);
-      } else {
-        const recentPurchasesData = recentData?.map(receipt => ({
-          id: receipt.id,
-          store_name: receipt.store_name || 'Unknown Store',
-          total_amount: receipt.total_amount || 0,
-          purchase_date: receipt.purchase_date || new Date().toISOString().split('T')[0],
-          items_count: receipt.analysis_result ? 
-            (Array.isArray(receipt.analysis_result) ? receipt.analysis_result.length : 0) : 0
-        })) || [];
+      if (recentError) throw recentError;
 
-        setRecentPurchases(recentPurchasesData);
-      }
+      const recentPurchasesData = recentData?.map(receipt => ({
+        id: receipt.id,
+        store_name: receipt.store_name || 'Unknown Store',
+        total_amount: receipt.total_amount || 0,
+        purchase_date: receipt.purchase_date || new Date().toISOString().split('T')[0],
+        items_count: receipt.analysis_result ? 
+          (Array.isArray(receipt.analysis_result) ? receipt.analysis_result.length : 0) : 0
+      })) || [];
+
+      setRecentPurchases(recentPurchasesData);
 
     } catch (error: any) {
       console.error('Error fetching spending data:', error);

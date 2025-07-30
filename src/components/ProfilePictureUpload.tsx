@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ImageUpload } from './ImageUpload';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,7 +22,7 @@ export const ProfilePictureUpload = () => {
       .from('profiles')
       .select('avatar_url')
       .eq('user_id', user.id)
-      .maybeSingle();
+      .single();
 
     if (!error && data) {
       setAvatarUrl(data.avatar_url || '');
@@ -35,31 +34,10 @@ export const ProfilePictureUpload = () => {
 
     setAvatarUrl(url);
 
-    // First check if profile exists
-    const { data: existingProfile } = await supabase
+    const { error } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    let error;
-    if (existingProfile) {
-      // Update existing profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: url })
-        .eq('user_id', user.id);
-      error = updateError;
-    } else {
-      // Create new profile
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({ 
-          user_id: user.id, 
-          avatar_url: url 
-        });
-      error = insertError;
-    }
+      .update({ avatar_url: url })
+      .eq('user_id', user.id);
 
     if (error) {
       toast({

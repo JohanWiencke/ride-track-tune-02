@@ -65,51 +65,14 @@ export type Database = {
           },
         ]
       }
-      bike_valuations: {
-        Row: {
-          bike_id: string
-          created_at: string
-          estimated_value: number
-          id: string
-          valuation_date: string
-          valuation_source: string
-        }
-        Insert: {
-          bike_id: string
-          created_at?: string
-          estimated_value: number
-          id?: string
-          valuation_date?: string
-          valuation_source?: string
-        }
-        Update: {
-          bike_id?: string
-          created_at?: string
-          estimated_value?: number
-          id?: string
-          valuation_date?: string
-          valuation_source?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bike_valuations_bike_id_fkey"
-            columns: ["bike_id"]
-            isOneToOne: false
-            referencedRelation: "bikes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       bikes: {
         Row: {
           bike_type: string
           brand: string | null
           component_details: string | null
           created_at: string
-          estimated_value: number | null
           id: string
           image_url: string | null
-          last_valuation_date: string | null
           model: string | null
           name: string
           price: number | null
@@ -117,7 +80,6 @@ export type Database = {
           total_distance: number
           updated_at: string
           user_id: string
-          valuation_source: string | null
           weight: number | null
           year: number | null
         }
@@ -126,10 +88,8 @@ export type Database = {
           brand?: string | null
           component_details?: string | null
           created_at?: string
-          estimated_value?: number | null
           id?: string
           image_url?: string | null
-          last_valuation_date?: string | null
           model?: string | null
           name: string
           price?: number | null
@@ -137,7 +97,6 @@ export type Database = {
           total_distance?: number
           updated_at?: string
           user_id: string
-          valuation_source?: string | null
           weight?: number | null
           year?: number | null
         }
@@ -146,10 +105,8 @@ export type Database = {
           brand?: string | null
           component_details?: string | null
           created_at?: string
-          estimated_value?: number | null
           id?: string
           image_url?: string | null
-          last_valuation_date?: string | null
           model?: string | null
           name?: string
           price?: number | null
@@ -157,7 +114,6 @@ export type Database = {
           total_distance?: number
           updated_at?: string
           user_id?: string
-          valuation_source?: string | null
           weight?: number | null
           year?: number | null
         }
@@ -262,146 +218,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          id: string
-          strava_access_token: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          id?: string
-          strava_access_token?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          id?: string
-          strava_access_token?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      receipts: {
-        Row: {
-          analysis_result: Json | null
-          analysis_status: string
-          created_at: string
-          id: string
-          image_url: string
-          original_filename: string
-          purchase_date: string | null
-          store_name: string | null
-          total_amount: number | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          analysis_result?: Json | null
-          analysis_status?: string
-          created_at?: string
-          id?: string
-          image_url: string
-          original_filename: string
-          purchase_date?: string | null
-          store_name?: string | null
-          total_amount?: number | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          analysis_result?: Json | null
-          analysis_status?: string
-          created_at?: string
-          id?: string
-          image_url?: string
-          original_filename?: string
-          purchase_date?: string | null
-          store_name?: string | null
-          total_amount?: number | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      strava_activities: {
-        Row: {
-          activity_id: number
-          activity_type: string | null
-          bike_id: string | null
-          created_at: string
-          distance: number | null
-          id: string
-          name: string | null
-          start_date: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          activity_id: number
-          activity_type?: string | null
-          bike_id?: string | null
-          created_at?: string
-          distance?: number | null
-          id?: string
-          name?: string | null
-          start_date?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          activity_id?: number
-          activity_type?: string | null
-          bike_id?: string | null
-          created_at?: string
-          distance?: number | null
-          id?: string
-          name?: string | null
-          start_date?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "strava_activities_bike_id_fkey"
-            columns: ["bike_id"]
-            isOneToOne: false
-            referencedRelation: "bikes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      valuation_history: {
-        Row: {
-          created_at: string
-          id: string
-          total_bikes_valued: number
-          total_estimated_value: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          total_bikes_valued: number
-          total_estimated_value: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          total_bikes_valued?: number
-          total_estimated_value?: number
-          user_id?: string
-        }
-        Relationships: []
       }
     }
     Views: {
