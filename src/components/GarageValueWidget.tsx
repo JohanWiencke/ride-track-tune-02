@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,6 @@ export const GarageValueWidget = () => {
   const [loading, setLoading] = useState(true);
   const [valuationHistory, setValuationHistory] = useState<ValuationHistory[]>([]);
   const [showChart, setShowChart] = useState(false);
-  const [canValuate, setCanValuate] = useState(true);
 
   const fetchBikeValuations = async () => {
     if (!user) return;
@@ -87,9 +87,6 @@ export const GarageValueWidget = () => {
       
       setTotalEstimatedValue(estimatedTotal);
       setTotalOriginalValue(originalTotal);
-      
-      // Check if user can valuate (rate limiting)
-      await checkCanValuate();
     } catch (error) {
       console.error('Error fetching bikes:', error);
       toast.error("Failed to fetch bike data");
@@ -112,47 +109,6 @@ export const GarageValueWidget = () => {
       setValuationHistory(data || []);
     } catch (error) {
       console.error('Error fetching valuation history:', error);
-    }
-  };
-
-  const checkCanValuate = async () => {
-    if (!user) return;
-
-    try {
-      // Check if user has valuated in the last 3.5 days (twice per week = every 3.5 days)
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - 3.5);
-
-      const { data: recentValuations, error } = await supabase
-        .from('valuation_history')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .gte('created_at', cutoffDate.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error('Error checking rate limit:', error);
-        setCanValuate(true);
-        return;
-      }
-
-      // If no recent valuations found, user can valuate
-      if (!recentValuations || recentValuations.length === 0) {
-        setCanValuate(true);
-        return;
-      }
-
-      // If there's a recent valuation within 3.5 days, they cannot valuate yet
-      const lastValuation = new Date(recentValuations[0].created_at);
-      const now = new Date();
-      const hoursSinceLastValuation = (now.getTime() - lastValuation.getTime()) / (1000 * 60 * 60);
-      
-      // Allow if it's been more than 84 hours (3.5 days)
-      setCanValuate(hoursSinceLastValuation >= 84);
-    } catch (error) {
-      console.error('Error checking rate limit:', error);
-      setCanValuate(true);
     }
   };
 
@@ -259,11 +215,6 @@ export const GarageValueWidget = () => {
   };
 
   const valuateAllBikes = async () => {
-    if (!canValuate) {
-      toast.error('You can only valuate your garage twice per week. Please try again later.');
-      return;
-    }
-
     setIsValuating(true);
     let successCount = 0;
     let totalEstimated = 0;
@@ -285,11 +236,10 @@ export const GarageValueWidget = () => {
     setIsValuating(false);
     toast.success(`${successCount} bikes valued successfully`);
     
-    // Refresh data and rate limit check
+    // Refresh data
     await fetchBikes();
     await fetchBikeValuations();
     await fetchValuationHistory();
-    await checkCanValuate(); // Re-check rate limit after valuation
   };
 
   useEffect(() => {
@@ -368,18 +318,10 @@ export const GarageValueWidget = () => {
           )}
         </div>
 
-        {!canValuate && (
-          <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              Rate limit: You can only valuate twice per week. Next valuation available soon.
-            </p>
-          </div>
-        )}
-
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button 
             onClick={valuateAllBikes}
-            disabled={isValuating || bikes.length === 0 || !canValuate}
+            disabled={isValuating || bikes.length === 0}
             className="flex-1"
             variant="outline"
           >
