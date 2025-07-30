@@ -25,14 +25,13 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    // Use the API key provided by the user
-    const ocrApiKey = 'f755c0d16ad841dad06bd258fc4ee3a0';
+    const googleVisionApiKey = Deno.env.get('GOOGLE_CLOUD_VISION_API_KEY')!;
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Analyzing receipt:', receiptId);
     console.log('Image URL:', imageUrl);
-    console.log('OCR API Key being used:', ocrApiKey.substring(0, 10) + '...');
+    console.log('Using Google Cloud Vision API');
 
     // Get receipt data
     const { data: receipt, error: receiptError } = await supabase
@@ -49,81 +48,96 @@ serve(async (req) => {
       );
     }
 
-    console.log('Performing OCR analysis for:', imageUrl);
+    console.log('Performing OCR analysis with Google Cloud Vision for:', imageUrl);
 
-    // Try OCR.space API with proper headers and body format
-    const ocrFormData = new FormData();
-    ocrFormData.append('apikey', ocrApiKey);
-    ocrFormData.append('url', imageUrl);
-    ocrFormData.append('language', 'eng,ger,fre'); // English, German, French
-    ocrFormData.append('detectOrientation', 'true');
-    ocrFormData.append('scale', 'true');
-    ocrFormData.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
-    ocrFormData.append('isTable', 'true'); // Better for receipts
+    // Prepare request for Google Cloud Vision API
+    const visionRequest = {
+      requests: [
+        {
+          image: {
+            source: {
+              imageUri: imageUrl
+            }
+          },
+          features: [
+            {
+              type: 'TEXT_DETECTION',
+              maxResults: 1
+            },
+            {
+              type: 'DOCUMENT_TEXT_DETECTION',
+              maxResults: 1
+            }
+          ]
+        }
+      ]
+    };
+
+    console.log('Making Google Cloud Vision API request...');
+    const visionResponse = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${googleVisionApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(visionRequest),
+      }
+    );
+
+    console.log('Vision API Response status:', visionResponse.status, visionResponse.statusText);
+
+    if (!visionResponse.ok) {
+      const errorText = await visionResponse.text();
+      console.error('Google Vision API request failed:', visionResponse.status, visionResponse.statusText);
+      console.error('Vision API error response:', errorText);
+      
+      // Update receipt status to failed
+      await supabase
+        .from('receipts')
+        .update({
+          analysis_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', receiptId);
+
+      throw new Error(`Google Vision API failed with status ${visionResponse.status}: ${errorText}`);
+    }
+
+    const visionResult = await visionResponse.json();
+    console.log('Vision API Result received, processing...');
+
+    if (visionResult.responses?.[0]?.error) {
+      console.error('Vision API processing error:', visionResult.responses[0].error);
+      
+      // Update receipt status to failed
+      await supabase
+        .from('receipts')
+        .update({
+          analysis_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', receiptId);
+
+      throw new Error(`Vision API processing failed: ${visionResult.responses[0].error.message}`);
+    }
+
+    // Extract text from Vision API response
+    const textAnnotations = visionResult.responses?.[0]?.textAnnotations;
+    const fullTextAnnotation = visionResult.responses?.[0]?.fullTextAnnotation;
     
-    console.log('Making OCR API request to OCR.space...');
-    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: ocrFormData,
-    });
-
-    console.log('OCR Response status:', ocrResponse.status, ocrResponse.statusText);
-
-    if (!ocrResponse.ok) {
-      const errorText = await ocrResponse.text();
-      console.error('OCR API request failed:', ocrResponse.status, ocrResponse.statusText);
-      console.error('OCR API error response:', errorText);
-      
-      // Update receipt status to failed
-      await supabase
-        .from('receipts')
-        .update({
-          analysis_status: 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', receiptId);
-
-      throw new Error(`OCR API failed with status ${ocrResponse.status}: ${errorText}`);
+    let extractedText = '';
+    
+    if (fullTextAnnotation?.text) {
+      extractedText = fullTextAnnotation.text;
+    } else if (textAnnotations && textAnnotations.length > 0) {
+      extractedText = textAnnotations[0].description;
     }
 
-    const ocrResult = await ocrResponse.json();
-    console.log('OCR Result received, processing...');
-
-    if (ocrResult.IsErroredOnProcessing) {
-      console.error('OCR processing error:', ocrResult.ErrorMessage);
-      
-      // Update receipt status to failed
-      await supabase
-        .from('receipts')
-        .update({
-          analysis_status: 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', receiptId);
-
-      throw new Error(`OCR processing failed: ${ocrResult.ErrorMessage}`);
-    }
-
-    if (!ocrResult.ParsedResults || ocrResult.ParsedResults.length === 0) {
-      console.error('No parsed results from OCR');
-      
-      // Update receipt status to failed
-      await supabase
-        .from('receipts')
-        .update({
-          analysis_status: 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', receiptId);
-
-      throw new Error('No text could be extracted from the image');
-    }
-
-    const extractedText = ocrResult.ParsedResults[0].ParsedText;
-    console.log('OCR extracted text (first 200 chars):', extractedText.substring(0, 200));
+    console.log('Vision API extracted text (first 200 chars):', extractedText.substring(0, 200));
 
     if (!extractedText || extractedText.trim() === '') {
-      console.error('Empty text extracted from OCR');
+      console.error('Empty text extracted from Vision API');
       
       // Update receipt status to failed
       await supabase
