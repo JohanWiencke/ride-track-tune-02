@@ -195,21 +195,23 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
     }
   };
 
-  // Show loading state while checking auth
+  // Show loading state while checking auth or connection status
   if (loading || connectionStatus === 'checking') {
     return (
       <Card>
         <CardContent className="p-6">
           <div className="text-center">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-            <p className="text-sm text-muted-foreground">Checking Strava connection...</p>
+            <p className="text-sm text-muted-foreground">
+              {loading ? "Checking authentication..." : "Checking Strava connection..."}
+            </p>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  // Show sign-in message if user is not authenticated (only after loading is done)
+  // Show sign-in message only if user is definitively not authenticated
   if (!user) {
     return (
       <Card>
