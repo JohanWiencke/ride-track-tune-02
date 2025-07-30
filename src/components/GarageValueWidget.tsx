@@ -287,16 +287,14 @@ export const GarageValueWidget = () => {
             )}
           </Button>
           
-          {(valuationHistory.length > 0 || totalOriginalValue > 0) && (
-            <Button
-              onClick={() => setShowChart(!showChart)}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Value overtime
-            </Button>
-          )}
+          <Button
+            onClick={() => setShowChart(!showChart)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <BarChart3 className="w-4 h-4" />
+            Value overtime
+          </Button>
         </div>
 
         {showChart && (valuationHistory.length > 0 || totalOriginalValue > 0) && (
