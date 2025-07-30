@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -17,6 +17,11 @@ serve(async (req) => {
   }
 
   try {
+    // Check environment variables
+    if (!supabaseUrl || !supabaseKey || !stravaClientId || !stravaClientSecret) {
+      throw new Error('Missing environment variables');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const authHeader = req.headers.get('Authorization');
@@ -29,15 +34,18 @@ serve(async (req) => {
     const { action, code } = await req.json();
 
     if (action === 'get_auth_url') {
-      const redirectUri = `${req.headers.get('origin')}/strava-callback`;
+      const origin = req.headers.get('origin') || '';
+      const redirectUri = `${origin}/strava-callback`;
       const scope = 'read,read_all,activity:read_all,activity:read';
-      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     if (action === 'exchange_code') {
+      if (!code) throw new Error('Missing code for exchange');
+
       const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,19 +73,8 @@ serve(async (req) => {
 
       if (updateError) throw new Error(`DB update failed: ${updateError.message}`);
 
-      // Fetch athlete info from Strava API using the new access token
-      const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` }
-      });
-
-      if (!athleteResponse.ok) {
-        const athleteErr = await athleteResponse.text();
-        throw new Error(`Failed to fetch athlete info: ${athleteErr}`);
-      }
-
-      const athlete = await athleteResponse.json();
-
-      return new Response(JSON.stringify({ success: true, athlete }), {
+      // Optionally return athlete info here to help frontend display the name immediately
+      return new Response(JSON.stringify({ success: true, athlete: tokenData.athlete }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
