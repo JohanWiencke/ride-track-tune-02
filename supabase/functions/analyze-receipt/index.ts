@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -26,17 +25,14 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const ocrApiKey = Deno.env.get('OCR_SPACE_API_KEY')!;
-    
-    if (!ocrApiKey) {
-      throw new Error('OCR_SPACE_API_KEY is not configured');
-    }
+    // Use the hardcoded API key for now
+    const ocrApiKey = 'f755c0d16ad841dad06bd258fc4ee3a0';
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Analyzing receipt:', receiptId);
     console.log('Image URL:', imageUrl);
-    console.log('OCR API Key present:', !!ocrApiKey);
+    console.log('OCR API Key being used:', ocrApiKey.substring(0, 8) + '...');
 
     // Get receipt data
     const { data: receipt, error: receiptError } = await supabase
@@ -65,14 +61,19 @@ serve(async (req) => {
     ocrFormData.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
     ocrFormData.append('filetype', 'auto');
 
+    console.log('Making OCR API request...');
     const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
       body: ocrFormData,
     });
 
+    console.log('OCR Response status:', ocrResponse.status, ocrResponse.statusText);
+
     if (!ocrResponse.ok) {
+      const errorText = await ocrResponse.text();
       console.error('OCR API request failed:', ocrResponse.status, ocrResponse.statusText);
-      throw new Error(`OCR API request failed: ${ocrResponse.status} ${ocrResponse.statusText}`);
+      console.error('OCR API error response:', errorText);
+      throw new Error(`OCR API request failed: ${ocrResponse.status} ${ocrResponse.statusText} - ${errorText}`);
     }
 
     const ocrResult = await ocrResponse.json();
@@ -251,9 +252,9 @@ serve(async (req) => {
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseKey);
       
-      // Parse the request body to get receiptId
-      const url = new URL(req.url);
-      const receiptId = url.searchParams.get('receiptId');
+      // Get receiptId from the request body in case of error
+      const requestBody = await req.clone().json();
+      const receiptId = requestBody?.receiptId;
       
       if (receiptId) {
         await supabase
