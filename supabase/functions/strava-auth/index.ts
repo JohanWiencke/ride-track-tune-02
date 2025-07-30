@@ -52,12 +52,13 @@ serve(async (req) => {
     console.log('Action:', action);
 
     if (action === 'get_auth_url') {
-      // Generate Strava OAuth URL
+      // Generate Strava OAuth URL with expanded scopes for gear access
       const redirectUri = `${req.headers.get('origin')}/strava-callback`;
-      const scope = 'read,activity:read_all';
+      const scope = 'read,read_all,activity:read_all,activity:read'; // Added more comprehensive scopes
       const authUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
       
       console.log('Generated auth URL for redirect URI:', redirectUri);
+      console.log('Using scopes:', scope);
       
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
