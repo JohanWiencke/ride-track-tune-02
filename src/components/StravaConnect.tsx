@@ -91,55 +91,66 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.172"/>
-          </svg>
-          Strava Integration
-        </CardTitle>
-        <CardDescription>
-          Connect your Strava account to automatically sync your bike garage and cycling activities with distances.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!isConnected ? (
-          <Button 
-            onClick={handleConnect}
-            disabled={isConnecting}
-            className="w-full"
-          >
-            {isConnecting ? "Connecting..." : "Connect to Strava"}
-          </Button>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-green-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      {!isConnected ? (
+        <>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.172"/>
               </svg>
-              Connected to Strava
+              Strava Integration
+            </CardTitle>
+            <CardDescription>
+              Connect your Strava account to automatically sync your bike garage and cycling activities with distances.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className="w-full"
+            >
+              {isConnecting ? "Connecting..." : "Connect to Strava"}
+            </Button>
+          </CardContent>
+        </>
+      ) : (
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.172"/>
+              </svg>
+              <span className="font-medium">Strava</span>
+              <div className="flex items-center gap-1 text-sm text-green-600">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Connected
+              </div>
             </div>
             <div className="flex gap-2">
               <Button 
                 onClick={handleSync}
                 disabled={isSyncing}
                 variant="outline"
-                className="flex-1"
+                size="sm"
               >
-                {isSyncing ? "Syncing..." : "Sync Bikes & Activities"}
+                {isSyncing ? "Syncing..." : "Sync"}
               </Button>
               <Button 
                 onClick={handleDisconnect}
                 disabled={isDisconnecting}
-                variant="destructive"
-                className="flex-1"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
               >
-                {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+                {isDisconnecting ? "..." : "Disconnect"}
               </Button>
             </div>
           </div>
-        )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }
