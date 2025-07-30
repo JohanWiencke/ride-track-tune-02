@@ -82,6 +82,14 @@ const translations = {
     'enterBikeName': 'e.g., My Road Bike, Trail Beast',
     'selectBikeType': 'Select bike type',
     'optional': 'Optional',
+    
+    // User profile translations
+    'userProfile': 'User Profile',
+    'memberSince': 'Member since',
+    'garageValue': 'Garage Value',
+    'partsValue': 'Parts Value',
+    'parts': 'Parts',
+    'bikes': 'Bikes',
   },
   
   fr: {
@@ -159,6 +167,14 @@ const translations = {
     'enterBikeName': 'ex: Mon vélo de route, Bête de piste',
     'selectBikeType': 'Sélectionner le type de vélo',
     'optional': 'Optionnel',
+    
+    // User profile translations
+    'userProfile': 'Profil Utilisateur',
+    'memberSince': 'Membre depuis',
+    'garageValue': 'Valeur Garage',
+    'partsValue': 'Valeur Pièces',
+    'parts': 'Pièces',
+    'bikes': 'Vélos',
   },
   
   de: {
@@ -236,6 +252,14 @@ const translations = {
     'enterBikeName': 'z.B. Mein Rennrad, Trail Beast',
     'selectBikeType': 'Fahrradtyp auswählen',
     'optional': 'Optional',
+    
+    // User profile translations
+    'userProfile': 'Benutzerprofil',
+    'memberSince': 'Mitglied seit',
+    'garageValue': 'Garage Wert',
+    'partsValue': 'Teile Wert',
+    'parts': 'Teile',
+    'bikes': 'Fahrräder',
   },
   
   nl: {
@@ -313,6 +337,14 @@ const translations = {
     'enterBikeName': 'bijv. Mijn racefiets, Trail Beast',
     'selectBikeType': 'Selecteer fietstype',
     'optional': 'Optioneel',
+    
+    // User profile translations
+    'userProfile': 'Gebruikersprofiel',
+    'memberSince': 'Lid sinds',
+    'garageValue': 'Garage Waarde',
+    'partsValue': 'Onderdelen Waarde',
+    'parts': 'Onderdelen',
+    'bikes': 'Fietsen',
   },
   
   it: {
@@ -390,6 +422,14 @@ const translations = {
     'enterBikeName': 'es. La mia bici da corsa, Trail Beast',
     'selectBikeType': 'Seleziona tipo di bici',
     'optional': 'Opzionale',
+    
+    // User profile translations
+    'userProfile': 'Profilo Utente',
+    'memberSince': 'Membro dal',
+    'garageValue': 'Valore Garage',
+    'partsValue': 'Valore Parti',
+    'parts': 'Parti',
+    'bikes': 'Bici',
   },
   
   es: {
@@ -467,6 +507,14 @@ const translations = {
     'enterBikeName': 'ej. Mi bici de carretera, Trail Beast',
     'selectBikeType': 'Seleccionar tipo de bicicleta',
     'optional': 'Opcional',
+    
+    // User profile translations
+    'userProfile': 'Perfil de Usuario',
+    'memberSince': 'Miembro desde',
+    'garageValue': 'Valor Garage',
+    'partsValue': 'Valor Piezas',
+    'parts': 'Piezas',
+    'bikes': 'Bicicletas',
   },
   
   da: {
@@ -544,6 +592,14 @@ const translations = {
     'enterBikeName': 'f.eks. Min racercykel, Trail Beast',
     'selectBikeType': 'Vælg cykeltype',
     'optional': 'Valgfri',
+    
+    // User profile translations
+    'userProfile': 'Brugerprofil',
+    'memberSince': 'Medlem siden',
+    'garageValue': 'Garage Værdi',
+    'partsValue': 'Dele Værdi',
+    'parts': 'Dele',
+    'bikes': 'Cykler',
   },
 };
 

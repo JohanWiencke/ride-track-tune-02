@@ -17,6 +17,7 @@ import { WearProgress } from '@/components/WearProgress';
 import { InventoryWidget } from '@/components/InventoryWidget';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ProfilePictureUpload } from '@/components/ProfilePictureUpload';
+import { UserProfilePopup } from '@/components/UserProfilePopup';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   DropdownMenu,
@@ -62,9 +63,11 @@ const Dashboard = () => {
   const [selectedBike, setSelectedBike] = useState<Bike | null>(null);
   const [editingBike, setEditingBike] = useState<Bike | null>(null);
   const [isStravaConnected, setIsStravaConnected] = useState(false);
+  const [inventoryStats, setInventoryStats] = useState({ totalParts: 0, totalValue: 0 });
 
   useEffect(() => {
     fetchBikes();
+    fetchInventoryStats();
     
     // Check if we're returning from Strava authorization
     const urlParams = new URLSearchParams(window.location.search);
@@ -143,6 +146,26 @@ const Dashboard = () => {
     }
   };
 
+  const fetchInventoryStats = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data: inventoryData, error } = await supabase
+        .from('parts_inventory')
+        .select('quantity, purchase_price')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      const totalParts = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      const totalValue = inventoryData?.reduce((sum, item) => sum + ((item.purchase_price || 0) * item.quantity), 0) || 0;
+
+      setInventoryStats({ totalParts, totalValue });
+    } catch (error) {
+      console.error('Error fetching inventory stats:', error);
+    }
+  };
+
   const getComponentStatus = (component: BikeComponent) => {
     const usage = (component.current_distance / component.replacement_distance) * 100;
     if (usage >= 90) return { status: 'critical', color: 'destructive' };
@@ -189,29 +212,39 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <ProfilePictureUpload />
-            <span className="text-sm text-muted-foreground">
-              {user?.email?.split('@')[0]}
-            </span>
+            
+            <UserProfilePopup
+              userEmail={user?.email || ''}
+              bikeCount={bikes.length}
+              garageValue={getTotalGarageValue()}
+              partInventoryCount={inventoryStats.totalParts}
+              partInventoryValue={inventoryStats.totalValue}
+            >
+              <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                {user?.email?.split('@')[0]}
+              </button>
+            </UserProfilePopup>
+            
             <LanguageSwitcher />
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="glass-dropdown-trigger">
                   <Menu className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-48 glass-dropdown">
                 {isStravaConnected && (
-                  <DropdownMenuItem onClick={() => navigate('/stats')}>
+                  <DropdownMenuItem onClick={() => navigate('/stats')} className="glass-dropdown-item">
                     <BarChart3 className="h-4 w-4 mr-2" />
                     {t('stats')}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => navigate('/parts-inventory')}>
+                <DropdownMenuItem onClick={() => navigate('/parts-inventory')} className="glass-dropdown-item">
                   <Package className="h-4 w-4 mr-2" />
                   {t('inventory')}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={signOut}>
+                <DropdownMenuItem onClick={signOut} className="glass-dropdown-item">
                   <Settings className="h-4 w-4 mr-2" />
                   {t('signOut')}
                 </DropdownMenuItem>
