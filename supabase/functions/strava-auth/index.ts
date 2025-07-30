@@ -36,6 +36,44 @@ Deno.serve(async (req) => {
     if (!user || authError) {
       throw new Error('Unauthorized or auth retrieval failed')
     }
+      const url = new URL(req.url)
+
+  // Handle GET request from Strava OAuth redirect
+  if (req.method === 'GET' && url.searchParams.has('code')) {
+    const code = url.searchParams.get('code')
+    const STRAVA_CLIENT_ID = Deno.env.get('STRAVA_CLIENT_ID')
+    const STRAVA_CLIENT_SECRET = Deno.env.get('STRAVA_CLIENT_SECRET')
+
+    try {
+      const tokenRes = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: STRAVA_CLIENT_ID,
+          client_secret: STRAVA_CLIENT_SECRET,
+          code,
+          grant_type: 'authorization_code',
+        }),
+      })
+
+      const tokenData = await tokenRes.json()
+
+      if (!tokenRes.ok) {
+        console.error('Strava redirect token error:', tokenData)
+        return new Response('Strava token exchange failed', { status: 500 })
+      }
+
+      console.log('Got Strava token via redirect:', tokenData)
+
+      // You could also set a cookie or redirect to a frontend success page
+      return Response.redirect('https://preview--ride-track-tune-02.lovable.app/success', 302)
+
+    } catch (err) {
+      console.error('Error during Strava redirect handling:', err)
+      return new Response('Internal server error during Strava OAuth', { status: 500 })
+    }
+  }
+
 
     const { action, code } = await req.json()
     console.log('Received action:', action)
