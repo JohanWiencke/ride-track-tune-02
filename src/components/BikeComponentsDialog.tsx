@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, AlertTriangle, CheckCircle, Settings, Trash2 } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle, Settings, Trash2, Minus } from 'lucide-react';
 import { ComponentIcon } from './ComponentIcon';
 
 interface Bike {
@@ -38,6 +39,14 @@ interface BikeComponent {
   component_type: ComponentType;
 }
 
+interface InventoryItem {
+  id: string;
+  component_type_id: string;
+  quantity: number;
+  purchase_price?: number;
+  component_type: ComponentType;
+}
+
 interface BikeComponentsDialogProps {
   bike: Bike;
   open: boolean;
@@ -48,11 +57,15 @@ interface BikeComponentsDialogProps {
 export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpdated }: BikeComponentsDialogProps) => {
   const [components, setComponents] = useState<BikeComponent[]>([]);
   const [componentTypes, setComponentTypes] = useState<ComponentType[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [showAddComponent, setShowAddComponent] = useState(false);
   const [selectedComponentType, setSelectedComponentType] = useState('');
   const [customDistance, setCustomDistance] = useState('');
   const [initialDistance, setInitialDistance] = useState('');
   const [showRetireBike, setShowRetireBike] = useState(false);
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false);
+  const [replacingComponent, setReplacingComponent] = useState<BikeComponent | null>(null);
+  const [availableInventoryItem, setAvailableInventoryItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
@@ -84,6 +97,22 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
         .order('name');
 
       if (typesError) throw typesError;
+
+      // Fetch user's inventory
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: inventoryData, error: inventoryError } = await supabase
+          .from('parts_inventory')
+          .select(`
+            *,
+            component_type:component_types(*)
+          `)
+          .eq('user_id', user.id)
+          .gt('quantity', 0);
+
+        if (inventoryError) throw inventoryError;
+        setInventoryItems(inventoryData || []);
+      }
 
       setComponents(componentsData || []);
       setComponentTypes(typesData || []);
@@ -141,7 +170,62 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
     }
   };
 
-  const replaceComponent = async (componentId: string) => {
+  const removeComponent = async (componentId: string) => {
+    setUpdating(true);
+    try {
+      // Mark component as inactive
+      await supabase
+        .from('bike_components')
+        .update({ is_active: false })
+        .eq('id', componentId);
+
+      // Create maintenance record
+      const component = components.find(c => c.id === componentId);
+      if (component) {
+        await supabase
+          .from('maintenance_records')
+          .insert({
+            bike_component_id: componentId,
+            action_type: 'removed',
+            distance_at_action: bike.total_distance,
+          });
+      }
+
+      toast({
+        title: "Component removed",
+        description: "Component has been removed from your bike.",
+      });
+
+      await fetchData();
+      onComponentsUpdated();
+    } catch (error: any) {
+      toast({
+        title: "Error removing component",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const initiateReplace = (component: BikeComponent) => {
+    // Check if user has this component type in inventory
+    const inventoryItem = inventoryItems.find(item => 
+      item.component_type_id === component.component_type_id && item.quantity > 0
+    );
+
+    if (inventoryItem) {
+      setReplacingComponent(component);
+      setAvailableInventoryItem(inventoryItem);
+      setShowReplaceDialog(true);
+    } else {
+      // No inventory item, proceed with regular replacement
+      replaceComponent(component.id, false);
+    }
+  };
+
+  const replaceComponent = async (componentId: string, useInventory: boolean = false) => {
     setUpdating(true);
     try {
       // Mark current component as inactive
@@ -161,6 +245,22 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
             distance_at_action: bike.total_distance,
           });
 
+        // If using inventory, reduce quantity
+        if (useInventory && availableInventoryItem) {
+          const newQuantity = availableInventoryItem.quantity - 1;
+          if (newQuantity > 0) {
+            await supabase
+              .from('parts_inventory')
+              .update({ quantity: newQuantity })
+              .eq('id', availableInventoryItem.id);
+          } else {
+            await supabase
+              .from('parts_inventory')
+              .delete()
+              .eq('id', availableInventoryItem.id);
+          }
+        }
+
         // Add new component
         await supabase
           .from('bike_components')
@@ -175,9 +275,14 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
 
       toast({
         title: "Component replaced",
-        description: "Component has been replaced successfully.",
+        description: useInventory 
+          ? "Component has been replaced using inventory part."
+          : "Component has been replaced successfully.",
       });
 
+      setShowReplaceDialog(false);
+      setReplacingComponent(null);
+      setAvailableInventoryItem(null);
       await fetchData();
       onComponentsUpdated();
     } catch (error: any) {
@@ -305,15 +410,26 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
                                 <Progress value={Math.min(100, usage)} className="h-2" />
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => replaceComponent(component.id)}
-                              disabled={updating}
-                              className="ml-4"
-                            >
-                              Replace
-                            </Button>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => initiateReplace(component)}
+                                disabled={updating}
+                              >
+                                Replace
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeComponent(component.id)}
+                                disabled={updating}
+                                className="gap-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                                Remove
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -412,6 +528,57 @@ export const BikeComponentsDialog = ({ bike, open, onOpenChange, onComponentsUpd
                 </Card>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Replace Component with Inventory Dialog */}
+        {showReplaceDialog && replacingComponent && availableInventoryItem && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="mx-4 max-w-md">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Replace Component</h3>
+                <p className="text-muted-foreground mb-4">
+                  You have a {replacingComponent.component_type.name} in your inventory. 
+                  Would you like to use it to replace this component?
+                </p>
+                <div className="bg-muted p-3 rounded mb-4">
+                  <p className="text-sm">
+                    <strong>Available in inventory:</strong> {availableInventoryItem.quantity} unit(s)
+                    {availableInventoryItem.purchase_price && (
+                      <span> • €{availableInventoryItem.purchase_price.toFixed(2)} each</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowReplaceDialog(false);
+                      setReplacingComponent(null);
+                      setAvailableInventoryItem(null);
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => replaceComponent(replacingComponent.id, false)}
+                    disabled={updating}
+                    className="flex-1"
+                  >
+                    Replace Without Inventory
+                  </Button>
+                  <Button
+                    onClick={() => replaceComponent(replacingComponent.id, true)}
+                    disabled={updating}
+                    className="flex-1"
+                  >
+                    {updating ? "Replacing..." : "Use Inventory Part"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
