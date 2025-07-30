@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro, Edit } from 'lucide-react';
+import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro, Edit, Menu } from 'lucide-react';
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { EditBikeDialog } from '@/components/EditBikeDialog';
@@ -18,6 +18,12 @@ import { InventoryWidget } from '@/components/InventoryWidget';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ProfilePictureUpload } from '@/components/ProfilePictureUpload';
 import { useTranslation } from '@/hooks/useTranslation';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Bike {
   id: string;
@@ -183,24 +189,34 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <ProfilePictureUpload />
-            <span className="text-xs text-muted-foreground hidden md:block">
+            <span className="text-sm text-muted-foreground">
               {user?.email?.split('@')[0]}
             </span>
             <LanguageSwitcher />
-            {isStravaConnected && (
-              <Button size="sm" variant="outline" onClick={() => navigate('/stats')} className="flex items-center gap-1 px-2">
-                <BarChart3 className="h-3 w-3" />
-                <span className="hidden sm:inline">{t('stats')}</span>
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => navigate('/parts-inventory')} className="flex items-center gap-1 px-2">
-              <Package className="h-3 w-3" />
-              <span className="hidden sm:inline">{t('inventory')}</span>
-            </Button>
-            <Button size="sm" variant="outline" onClick={signOut} className="px-2">
-              <span className="hidden sm:inline">{t('signOut')}</span>
-              <span className="sm:hidden">{t('signOut')}</span>
-            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {isStravaConnected && (
+                  <DropdownMenuItem onClick={() => navigate('/stats')}>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    {t('stats')}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => navigate('/parts-inventory')}>
+                  <Package className="h-4 w-4 mr-2" />
+                  {t('inventory')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={signOut}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t('signOut')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
