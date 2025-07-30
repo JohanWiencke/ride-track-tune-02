@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro, Edit, Menu } from 'lucide-react';
+import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro, Edit, Menu, User } from 'lucide-react';
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { EditBikeDialog } from '@/components/EditBikeDialog';
@@ -243,6 +243,10 @@ const Dashboard = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 glass-dropdown animate-smooth-dropdown">
+                <DropdownMenuItem onClick={() => navigate('/profile')} className="glass-dropdown-item">
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </DropdownMenuItem>
                 {isStravaConnected && (
                   <DropdownMenuItem onClick={() => navigate('/stats')} className="glass-dropdown-item">
                     <BarChart3 className="h-4 w-4 mr-2" />
