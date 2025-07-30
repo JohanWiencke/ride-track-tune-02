@@ -37,7 +37,7 @@ serve(async (req) => {
 
     // Check rate limiting - 2 times per week (every 3.5 days)
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 0);
+    cutoffDate.setDate(cutoffDate.getDate() - 3.5);
 
     const { data: recentValuations, error: rateLimitError } = await supabase
       .from('valuation_history')
