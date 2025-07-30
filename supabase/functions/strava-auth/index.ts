@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     console.log('Received action:', action)
 
     if (action === 'get_auth_url') {
-      const redirectUri = 'https://preview--ride-track-tune-02.lovable.app/strava-auth/callback'
+      const redirectUri = 'https://preview--ride-track-tune-02.lovable.app/api/strava'
       const scope = 'read,activity:read,profile:read_all'
 
       const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}&state=strava`
