@@ -169,6 +169,9 @@ export const GarageValueWidget = () => {
 
         if (valuationError) {
           console.error('Error saving bike valuation:', valuationError);
+        } else {
+          // Immediately refresh bike valuations to update the chart
+          await fetchBikeValuations();
         }
         
         toast.success(`Bike valued at €${data.estimatedValue}`);
@@ -459,6 +462,8 @@ export const GarageValueWidget = () => {
                     val.bike_id === bike.id && 
                     new Date(val.valuation_date) >= filterDate
                   );
+
+                  console.log(`Bike ${bike.name} has ${filteredBikeValuations.length} valuations:`, filteredBikeValuations);
 
                   filteredBikeValuations.forEach(val => {
                     allDataPoints.push({
