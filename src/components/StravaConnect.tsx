@@ -131,13 +131,13 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
                 <span className="sm:hidden">✓</span>
               </div>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
               <Button 
                 onClick={handleSync}
                 disabled={isSyncing}
                 variant="outline"
                 size="sm"
-                className="flex-1 sm:flex-none text-xs sm:text-sm"
+                className="w-full sm:w-auto text-xs sm:text-sm"
               >
                 {isSyncing ? "Syncing..." : "Sync"}
               </Button>
@@ -146,7 +146,7 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
                 disabled={isDisconnecting}
                 variant="ghost"
                 size="sm"
-                className="flex-1 sm:flex-none text-xs sm:text-sm text-muted-foreground hover:text-destructive"
+                className="w-full sm:w-auto text-xs sm:text-sm text-muted-foreground hover:text-destructive"
               >
                 {isDisconnecting ? "..." : "Disconnect"}
               </Button>

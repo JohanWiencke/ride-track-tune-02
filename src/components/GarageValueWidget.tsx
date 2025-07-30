@@ -361,12 +361,12 @@ export const GarageValueWidget = () => {
             )}
           </Button>
           
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               onClick={updateGarageValue}
               disabled={loading}
               variant="outline"
-              className="flex-1 text-sm"
+              className="w-full sm:flex-1 text-sm"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''} mr-2`} />
               <span className="hidden sm:inline">Update</span>
@@ -376,7 +376,7 @@ export const GarageValueWidget = () => {
             <Button
               onClick={() => setShowChart(!showChart)}
               variant="outline"
-              className="flex-1 text-sm"
+              className="w-full sm:flex-1 text-sm"
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Value overtime</span>
