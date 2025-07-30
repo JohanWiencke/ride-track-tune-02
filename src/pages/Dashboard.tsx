@@ -232,19 +232,6 @@ const Dashboard = () => {
             <h1 className="text-lg font-semibold sm:hidden">BikeMainTrack</h1>
           </div>
           <div className="flex items-center gap-2">
-            <UserProfilePopup
-              userEmail={user?.email || ''}
-              bikeCount={bikes.length}
-              garageValue={getTotalGarageValue()}
-              partInventoryCount={inventoryStats.totalParts}
-              partInventoryValue={inventoryStats.totalValue}
-              stravaStats={stravaStats}
-            >
-              <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                {user?.email?.split('@')[0]}
-              </button>
-            </UserProfilePopup>
-            
             <LanguageSwitcher />
             
             <DropdownMenu>
