@@ -38,10 +38,10 @@ serve(async (req) => {
     // Rate limiting disabled per user request
     console.log('Rate limiting disabled - proceeding with valuation');
     
-    // Get bike details including purchase date and mileage
+    // Get bike details including purchase date, mileage, and component details
     const { data: bike, error: bikeError } = await supabase
       .from('bikes')
-      .select('*, total_distance, purchase_date')
+      .select('*, total_distance, purchase_date, component_details')
       .eq('id', bikeId)
       .eq('user_id', user.id)
       .single();
@@ -51,9 +51,14 @@ serve(async (req) => {
     }
 
     console.log(`Valuating bike: ${bike.brand} ${bike.model} ${bike.year}`);
+    console.log(`Component details: ${bike.component_details || 'None specified'}`);
+    console.log(`Mileage: ${bike.total_distance || 0}km, Purchase date: ${bike.purchase_date || 'Not specified'}`);
 
-    // Search for similar bikes using SerpAPI
-    const searchQuery = `${bike.brand} ${bike.model} ${bike.year} bike used price`.trim();
+    // Build search query with component details for better accuracy
+    let searchQuery = `${bike.brand || ''} ${bike.model || ''} ${bike.year || ''} bike used price`.trim();
+    if (bike.component_details) {
+      searchQuery += ` ${bike.component_details}`;
+    }
     
     const serpApiUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(searchQuery)}&api_key=${serpApiKey}&num=10`;
     
@@ -111,9 +116,10 @@ serve(async (req) => {
     
     let baseEstimatedValue = filteredPrices.reduce((sum, price) => sum + price, 0) / filteredPrices.length;
     
-    // Apply depreciation based on age and mileage
+    // Apply depreciation based on age, mileage, and component quality
     let ageDepreciation = 1.0;
     let mileageDepreciation = 1.0;
+    let componentAdjustment = 1.0;
     
     // Calculate age-based depreciation if purchase date is available
     if (bike.purchase_date) {
@@ -129,6 +135,24 @@ serve(async (req) => {
       }
       
       console.log(`Age depreciation: ${ageInYears.toFixed(1)} years, factor: ${ageDepreciation.toFixed(2)}`);
+    }
+    
+    // Calculate component quality adjustment
+    if (bike.component_details) {
+      const details = bike.component_details.toLowerCase();
+      const premiumKeywords = ['ultegra', 'dura-ace', 'sram red', 'di2', 'electronic', 'carbon', 'lightweight', 'pro', 'race', 'premium'];
+      const budgetKeywords = ['tourney', 'altus', 'acera', 'basic', 'entry', 'budget', 'steel', 'heavy'];
+      
+      const premiumCount = premiumKeywords.reduce((count, keyword) => details.includes(keyword) ? count + 1 : count, 0);
+      const budgetCount = budgetKeywords.reduce((count, keyword) => details.includes(keyword) ? count + 1 : count, 0);
+      
+      if (premiumCount > budgetCount) {
+        componentAdjustment = Math.min(1.3, 1 + (premiumCount * 0.1)); // Up to 30% bonus for premium components
+      } else if (budgetCount > premiumCount) {
+        componentAdjustment = Math.max(0.8, 1 - (budgetCount * 0.05)); // Up to 20% penalty for budget components
+      }
+      
+      console.log(`Component adjustment: Premium keywords: ${premiumCount}, Budget keywords: ${budgetCount}, factor: ${componentAdjustment.toFixed(2)}`);
     }
     
     // Calculate mileage-based depreciation if total distance is available
@@ -153,9 +177,9 @@ serve(async (req) => {
       console.log(`Mileage: ${distanceInKm}km, expected: ${expectedDistance.toFixed(0)}km, factor: ${mileageDepreciation.toFixed(2)}`);
     }
     
-    const estimatedValue = baseEstimatedValue * ageDepreciation * mileageDepreciation;
+    const estimatedValue = baseEstimatedValue * ageDepreciation * mileageDepreciation * componentAdjustment;
     
-    console.log(`Base value: €${baseEstimatedValue.toFixed(0)}, Age factor: ${ageDepreciation.toFixed(2)}, Mileage factor: ${mileageDepreciation.toFixed(2)}, Final: €${estimatedValue.toFixed(0)}`);
+    console.log(`Base value: €${baseEstimatedValue.toFixed(0)}, Age: ${ageDepreciation.toFixed(2)}, Mileage: ${mileageDepreciation.toFixed(2)}, Components: ${componentAdjustment.toFixed(2)}, Final: €${estimatedValue.toFixed(0)}`);
     console.log(`Found ${prices.length} prices, filtered to ${filteredPrices.length}`);
 
     // Update bike with estimated value

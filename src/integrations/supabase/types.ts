@@ -96,6 +96,7 @@ export type Database = {
         Row: {
           bike_type: string | null
           brand: string | null
+          component_details: string | null
           created_at: string
           estimated_value: number | null
           id: string
@@ -115,6 +116,7 @@ export type Database = {
         Insert: {
           bike_type?: string | null
           brand?: string | null
+          component_details?: string | null
           created_at?: string
           estimated_value?: number | null
           id?: string
@@ -134,6 +136,7 @@ export type Database = {
         Update: {
           bike_type?: string | null
           brand?: string | null
+          component_details?: string | null
           created_at?: string
           estimated_value?: number | null
           id?: string
