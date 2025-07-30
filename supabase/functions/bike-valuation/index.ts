@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
@@ -77,13 +78,14 @@ serve(async (req) => {
     console.log(`Component details: ${bike.component_details || 'None specified'}`);
     console.log(`Mileage: ${bike.total_distance || 0}km, Purchase date: ${bike.purchase_date || 'Not specified'}`);
 
-    // Build search query with component details for better accuracy, include Buycycle and Kleinanzeigen
-    let searchQuery = `${bike.brand || ''} ${bike.model || ''} ${bike.year || ''} bike used price site:buycycle.com OR site:kleinanzeigen.de`.trim();
+    // Build search query targeting specific bike marketplaces
+    let searchQuery = `${bike.brand || ''} ${bike.model || ''} ${bike.year || ''} bike used price site:kleinanzeigen.de OR site:ebay.de OR site:buycycle.com OR site:bikeflip.de`.trim();
     if (bike.component_details) {
       searchQuery += ` ${bike.component_details}`;
     }
     
-    const serpApiUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(searchQuery)}&api_key=${serpApiKey}&num=20`;
+    // Use regular Google search instead of Google Shopping
+    const serpApiUrl = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(searchQuery)}&api_key=${serpApiKey}&num=20`;
     
     console.log(`Searching with query: ${searchQuery}`);
     
@@ -92,57 +94,73 @@ serve(async (req) => {
     
     console.log('SerpAPI response:', serpData);
 
-    if (!serpData.shopping_results || serpData.shopping_results.length === 0) {
-      // Try a broader search with Buycycle and Kleinanzeigen
-      const broaderQuery = `${bike.brand} ${bike.model} bike used site:buycycle.com OR site:kleinanzeigen.de`.trim();
-      const broaderUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(broaderQuery)}&api_key=${serpApiKey}&num=20`;
+    if (!serpData.organic_results || serpData.organic_results.length === 0) {
+      // Try a broader search with bike marketplaces
+      const broaderQuery = `${bike.brand} ${bike.model} bike used site:kleinanzeigen.de OR site:ebay.de OR site:buycycle.com OR site:bikeflip.de`.trim();
+      const broaderUrl = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(broaderQuery)}&api_key=${serpApiKey}&num=20`;
       
       console.log(`Trying broader search: ${broaderQuery}`);
       
       const broaderResponse = await fetch(broaderUrl);
       const broaderData = await broaderResponse.json();
       
-      if (!broaderData.shopping_results || broaderData.shopping_results.length === 0) {
+      if (!broaderData.organic_results || broaderData.organic_results.length === 0) {
         // Final fallback without site restrictions
-        const fallbackQuery = `${bike.brand} ${bike.model} bike used`.trim();
-        const fallbackUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(fallbackQuery)}&api_key=${serpApiKey}&num=15`;
+        const fallbackQuery = `${bike.brand} ${bike.model} bike used price`.trim();
+        const fallbackUrl = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(fallbackQuery)}&api_key=${serpApiKey}&num=15`;
         
         console.log(`Trying fallback search: ${fallbackQuery}`);
         
         const fallbackResponse = await fetch(fallbackUrl);
         const fallbackData = await fallbackResponse.json();
         
-        if (!fallbackData.shopping_results || fallbackData.shopping_results.length === 0) {
+        if (!fallbackData.organic_results || fallbackData.organic_results.length === 0) {
           throw new Error('No market data found for this bike');
         }
         
-        serpData.shopping_results = fallbackData.shopping_results;
+        serpData.organic_results = fallbackData.organic_results;
       } else {
-        serpData.shopping_results = broaderData.shopping_results;
+        serpData.organic_results = broaderData.organic_results;
       }
     }
 
-    // Extract prices and calculate average
+    // Extract prices from organic search results
     const prices: number[] = [];
     const sources: string[] = [];
     
-    serpData.shopping_results.forEach((result: any) => {
-      if (result.price) {
-        // Extract numeric value from price string
-        const priceMatch = result.price.match(/[\d,]+\.?\d*/);
-        if (priceMatch) {
-          const price = parseFloat(priceMatch[0].replace(/,/g, ''));
+    serpData.organic_results.forEach((result: any) => {
+      // Look for prices in the title, snippet, or displayed URL
+      const textToSearch = `${result.title || ''} ${result.snippet || ''} ${result.displayed_link || ''}`;
+      
+      // Common price patterns in German and English
+      const pricePatterns = [
+        /€\s?(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?)/g,
+        /(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?)\s?€/g,
+        /(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?)\s?EUR/g,
+        /Preis:\s?€?\s?(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?)/g,
+        /Price:\s?€?\s?(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})?)/g
+      ];
+      
+      pricePatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(textToSearch)) !== null) {
+          const priceStr = match[1];
+          // Convert German number format to standard format
+          const price = parseFloat(priceStr.replace(/\./g, '').replace(',', '.'));
+          
           if (price > 100 && price < 50000) { // Reasonable bike price range
             prices.push(price);
-            sources.push(result.source || 'Unknown');
+            sources.push(result.source || result.displayed_link || 'Unknown');
           }
         }
-      }
+      });
     });
 
     if (prices.length === 0) {
       throw new Error('No valid prices found in market data');
     }
+
+    console.log(`Found ${prices.length} prices: ${prices.join(', ')}`);
 
     // Calculate average price, removing outliers
     prices.sort((a, b) => a - b);
