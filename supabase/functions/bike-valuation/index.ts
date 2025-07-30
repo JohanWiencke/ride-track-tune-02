@@ -54,13 +54,13 @@ serve(async (req) => {
     console.log(`Component details: ${bike.component_details || 'None specified'}`);
     console.log(`Mileage: ${bike.total_distance || 0}km, Purchase date: ${bike.purchase_date || 'Not specified'}`);
 
-    // Build search query with component details for better accuracy
-    let searchQuery = `${bike.brand || ''} ${bike.model || ''} ${bike.year || ''} bike used price`.trim();
+    // Build search query with component details for better accuracy, include Buycycle and Kleinanzeigen
+    let searchQuery = `${bike.brand || ''} ${bike.model || ''} ${bike.year || ''} bike used price site:buycycle.com OR site:kleinanzeigen.de`.trim();
     if (bike.component_details) {
       searchQuery += ` ${bike.component_details}`;
     }
     
-    const serpApiUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(searchQuery)}&api_key=${serpApiKey}&num=10`;
+    const serpApiUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(searchQuery)}&api_key=${serpApiKey}&num=20`;
     
     console.log(`Searching with query: ${searchQuery}`);
     
@@ -70,9 +70,9 @@ serve(async (req) => {
     console.log('SerpAPI response:', serpData);
 
     if (!serpData.shopping_results || serpData.shopping_results.length === 0) {
-      // Try a broader search without year
-      const broaderQuery = `${bike.brand} ${bike.model} bike used`.trim();
-      const broaderUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(broaderQuery)}&api_key=${serpApiKey}&num=10`;
+      // Try a broader search with Buycycle and Kleinanzeigen
+      const broaderQuery = `${bike.brand} ${bike.model} bike used site:buycycle.com OR site:kleinanzeigen.de`.trim();
+      const broaderUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(broaderQuery)}&api_key=${serpApiKey}&num=20`;
       
       console.log(`Trying broader search: ${broaderQuery}`);
       
@@ -80,10 +80,23 @@ serve(async (req) => {
       const broaderData = await broaderResponse.json();
       
       if (!broaderData.shopping_results || broaderData.shopping_results.length === 0) {
-        throw new Error('No market data found for this bike');
+        // Final fallback without site restrictions
+        const fallbackQuery = `${bike.brand} ${bike.model} bike used`.trim();
+        const fallbackUrl = `https://serpapi.com/search.json?engine=google_shopping&q=${encodeURIComponent(fallbackQuery)}&api_key=${serpApiKey}&num=15`;
+        
+        console.log(`Trying fallback search: ${fallbackQuery}`);
+        
+        const fallbackResponse = await fetch(fallbackUrl);
+        const fallbackData = await fallbackResponse.json();
+        
+        if (!fallbackData.shopping_results || fallbackData.shopping_results.length === 0) {
+          throw new Error('No market data found for this bike');
+        }
+        
+        serpData.shopping_results = fallbackData.shopping_results;
+      } else {
+        serpData.shopping_results = broaderData.shopping_results;
       }
-      
-      serpData.shopping_results = broaderData.shopping_results;
     }
 
     // Extract prices and calculate average
@@ -177,7 +190,13 @@ serve(async (req) => {
       console.log(`Mileage: ${distanceInKm}km, expected: ${expectedDistance.toFixed(0)}km, factor: ${mileageDepreciation.toFixed(2)}`);
     }
     
-    const estimatedValue = baseEstimatedValue * ageDepreciation * mileageDepreciation * componentAdjustment;
+    let estimatedValue = baseEstimatedValue * ageDepreciation * mileageDepreciation * componentAdjustment;
+    
+    // Cap the estimated value at the purchase price (bikes can't be worth more than what you paid)
+    if (bike.price && estimatedValue > bike.price) {
+      estimatedValue = bike.price;
+      console.log(`Capped estimated value at purchase price: €${bike.price}`);
+    }
     
     console.log(`Base value: €${baseEstimatedValue.toFixed(0)}, Age: ${ageDepreciation.toFixed(2)}, Mileage: ${mileageDepreciation.toFixed(2)}, Components: ${componentAdjustment.toFixed(2)}, Final: €${estimatedValue.toFixed(0)}`);
     console.log(`Found ${prices.length} prices, filtered to ${filteredPrices.length}`);

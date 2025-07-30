@@ -453,13 +453,18 @@ export const GarageValueWidget = () => {
                   };
                 });
 
-                // Get all unique timestamps for the chart
+                // Get all unique timestamps for the chart, always include today
                 const allTimestamps = new Set<number>();
                 bikeTimelines.forEach(timeline => {
                   timeline.dataPoints.forEach(point => {
                     allTimestamps.add(point.timestamp);
                   });
                 });
+                
+                // Always add today's timestamp to extend chart to current date
+                const today = new Date();
+                today.setHours(23, 59, 59, 999); // End of today
+                allTimestamps.add(today.getTime());
 
                 const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
                 

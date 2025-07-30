@@ -90,7 +90,15 @@ export type Database = {
           valuation_date?: string
           valuation_source?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_bike_valuations_bike_id"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bikes: {
         Row: {
