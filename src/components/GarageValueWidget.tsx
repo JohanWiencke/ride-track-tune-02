@@ -439,66 +439,87 @@ export const GarageValueWidget = () => {
                   );
                 }
 
-                // Create timeline data combining all bikes
-                const allDataPoints = [];
+                // Find the earliest purchase date and latest date (today or last valuation)
+                const earliestDate = bikesWithData.reduce((earliest, bike) => {
+                  const bikeDate = new Date(bike.purchase_date!);
+                  return !earliest || bikeDate < earliest ? bikeDate : earliest;
+                }, null as Date | null);
 
-                bikesWithData.forEach((bike, index) => {
+                const today = new Date();
+                const latestValuationDate = bikeValuations.reduce((latest, val) => {
+                  const valDate = new Date(val.valuation_date);
+                  return !latest || valDate > latest ? valDate : latest;
+                }, null as Date | null);
+
+                const endDate = latestValuationDate && latestValuationDate > today ? latestValuationDate : today;
+
+                // Apply time filter
+                const startDate = timeFilter === 'all' ? earliestDate : 
+                  new Date(now.getTime() - (
+                    timeFilter === '2w' ? 14 * 24 * 60 * 60 * 1000 :
+                    timeFilter === '1m' ? 30 * 24 * 60 * 60 * 1000 :
+                    timeFilter === '3m' ? 90 * 24 * 60 * 60 * 1000 :
+                    timeFilter === '6m' ? 180 * 24 * 60 * 60 * 1000 :
+                    365 * 24 * 60 * 60 * 1000
+                  ));
+
+                if (!startDate) return null;
+
+                // Create timeline data for each bike
+                const bikeTimelines = bikesWithData.map((bike, index) => {
                   const bikeColor = colors[index % colors.length];
-                  
-                  // Add purchase point if date is within filter
-                  if (bike.purchase_date && new Date(bike.purchase_date) >= filterDate) {
-                    allDataPoints.push({
-                      date: bike.purchase_date,
-                      timestamp: new Date(bike.purchase_date).getTime(),
-                      [`${bike.name}`]: bike.price,
-                      bikeId: bike.id,
-                      bikeName: bike.name,
-                      color: bikeColor
+                  const dataPoints = [];
+
+                  // Add purchase point if within date range
+                  const purchaseDate = new Date(bike.purchase_date!);
+                  if (purchaseDate >= startDate) {
+                    dataPoints.push({
+                      date: bike.purchase_date!,
+                      timestamp: purchaseDate.getTime(),
+                      value: bike.price!,
+                      type: 'purchase'
                     });
                   }
 
-                  // Add valuation points for this bike
+                  // Add valuation points for this bike within date range
                   const filteredBikeValuations = bikeValuations.filter(val => 
                     val.bike_id === bike.id && 
-                    new Date(val.valuation_date) >= filterDate
+                    new Date(val.valuation_date) >= startDate
                   );
 
-                  console.log(`Bike ${bike.name} has ${filteredBikeValuations.length} valuations:`, filteredBikeValuations);
-
                   filteredBikeValuations.forEach(val => {
-                    allDataPoints.push({
-                      date: val.valuation_date.split('T')[0],
+                    dataPoints.push({
+                      date: val.valuation_date,
                       timestamp: new Date(val.valuation_date).getTime(),
-                      [`${bike.name}`]: val.estimated_value,
-                      bikeId: bike.id,
-                      bikeName: bike.name,
-                      color: bikeColor
+                      value: val.estimated_value,
+                      type: 'valuation'
                     });
+                  });
+
+                  // Sort points by timestamp
+                  dataPoints.sort((a, b) => a.timestamp - b.timestamp);
+
+                  return {
+                    bike,
+                    color: bikeColor,
+                    dataPoints
+                  };
+                });
+
+                console.log('Bike timelines:', bikeTimelines);
+
+                // Create unified timeline with all dates
+                const allTimestamps = new Set<number>();
+                bikeTimelines.forEach(timeline => {
+                  timeline.dataPoints.forEach(point => {
+                    allTimestamps.add(point.timestamp);
                   });
                 });
 
-                // Group by date and merge values
-                const dateGroups = allDataPoints.reduce((acc, point) => {
-                  const date = point.date;
-                  if (!acc[date]) {
-                    acc[date] = { 
-                      date, 
-                      timestamp: point.timestamp,
-                      bikes: {}
-                    };
-                  }
-                  acc[date].bikes[point.bikeName] = point[point.bikeName];
-                  return acc;
-                }, {} as any);
-
-                const chartData = Object.values(dateGroups)
-                  .sort((a: any, b: any) => a.timestamp - b.timestamp)
-                  .map((group: any) => ({
-                    date: new Date(group.date).toLocaleDateString(),
-                    ...group.bikes
-                  }));
-
-                if (chartData.length === 0) {
+                // Convert to sorted array of unique dates
+                const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+                
+                if (sortedTimestamps.length === 0) {
                   return (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center text-muted-foreground">
@@ -509,6 +530,36 @@ export const GarageValueWidget = () => {
                     </div>
                   );
                 }
+
+                // Build chart data with all bikes for each timestamp
+                const chartData = sortedTimestamps.map(timestamp => {
+                  const chartPoint: any = {
+                    date: new Date(timestamp).toLocaleDateString(),
+                    timestamp
+                  };
+
+                  // For each bike, find the value at this timestamp or carry forward the last known value
+                  bikeTimelines.forEach(timeline => {
+                    let value = null;
+                    
+                    // Find the last value for this bike at or before this timestamp
+                    for (let i = timeline.dataPoints.length - 1; i >= 0; i--) {
+                      if (timeline.dataPoints[i].timestamp <= timestamp) {
+                        value = timeline.dataPoints[i].value;
+                        break;
+                      }
+                    }
+
+                    // Only add the value if we have data for this bike at or before this timestamp
+                    if (value !== null) {
+                      chartPoint[timeline.bike.name] = value;
+                    }
+                  });
+
+                  return chartPoint;
+                });
+
+                console.log('Chart data:', chartData);
 
                 return (
                   <ResponsiveContainer width="100%" height="100%">
@@ -538,14 +589,14 @@ export const GarageValueWidget = () => {
                           borderRadius: '6px'
                         }}
                       />
-                      {bikesWithData.map((bike, index) => (
+                      {bikeTimelines.map((timeline, index) => (
                         <Line 
-                          key={bike.id}
+                          key={timeline.bike.id}
                           type="monotone" 
-                          dataKey={bike.name}
-                          stroke={colors[index % colors.length]}
+                          dataKey={timeline.bike.name}
+                          stroke={timeline.color}
                           strokeWidth={2}
-                          dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
+                          dot={{ fill: timeline.color, strokeWidth: 2, r: 4 }}
                           activeDot={{ r: 6 }}
                           connectNulls={false}
                         />
