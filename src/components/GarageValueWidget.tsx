@@ -116,8 +116,44 @@ export const GarageValueWidget = () => {
   };
 
   const checkCanValuate = async () => {
-    // Rate limiting disabled per user request
-    setCanValuate(true);
+    if (!user) return;
+
+    try {
+      // Check if user has valuated in the last 3.5 days (twice per week = every 3.5 days)
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 3.5);
+
+      const { data: recentValuations, error } = await supabase
+        .from('valuation_history')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .gte('created_at', cutoffDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking rate limit:', error);
+        setCanValuate(true);
+        return;
+      }
+
+      // If no recent valuations found, user can valuate
+      if (!recentValuations || recentValuations.length === 0) {
+        setCanValuate(true);
+        return;
+      }
+
+      // If there's a recent valuation within 3.5 days, they cannot valuate yet
+      const lastValuation = new Date(recentValuations[0].created_at);
+      const now = new Date();
+      const hoursSinceLastValuation = (now.getTime() - lastValuation.getTime()) / (1000 * 60 * 60);
+      
+      // Allow if it's been more than 84 hours (3.5 days)
+      setCanValuate(hoursSinceLastValuation >= 84);
+    } catch (error) {
+      console.error('Error checking rate limit:', error);
+      setCanValuate(true);
+    }
   };
 
   const saveValuationHistory = async (estimatedValue: number, bikesValued: number) => {
@@ -253,6 +289,7 @@ export const GarageValueWidget = () => {
     await fetchBikes();
     await fetchBikeValuations();
     await fetchValuationHistory();
+    await checkCanValuate(); // Re-check rate limit after valuation
   };
 
   useEffect(() => {

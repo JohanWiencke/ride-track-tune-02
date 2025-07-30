@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { GarageConditionWidget } from '@/components/GarageConditionWidget';
 
 interface Bike {
   id: string;
@@ -380,8 +381,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Inventory & Valuation Stats Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Enhanced Widgets Section - Now with 3 widgets */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-4">
             <h2 className="text-xl font-bold">{t('partsInventory')}</h2>
             <InventoryWidget />
@@ -389,6 +390,10 @@ const Dashboard = () => {
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Garage Valuation</h2>
             <GarageValueWidget />
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold">Garage Condition</h2>
+            <GarageConditionWidget />
           </div>
         </div>
 
