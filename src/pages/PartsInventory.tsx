@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,13 +93,18 @@ const PartsInventory = () => {
     
     setSaving(true);
     try {
+      // Ensure price is properly converted to number or null
+      const priceValue = price.trim() !== '' ? parseFloat(price) : null;
+      
+      console.log('Adding inventory item with price:', priceValue); // Debug log
+      
       const { error } = await supabase
         .from('parts_inventory')
         .insert({
           user_id: user.id,
           component_type_id: selectedComponentType,
           quantity: parseInt(quantity),
-          purchase_price: price ? parseFloat(price) : null,
+          purchase_price: priceValue,
           notes: notes || null,
         });
 
@@ -113,6 +119,7 @@ const PartsInventory = () => {
       setShowAddItem(false);
       await fetchData();
     } catch (error: any) {
+      console.error('Error adding inventory item:', error); // Debug log
       toast({
         title: "Error adding item",
         description: error.message,
