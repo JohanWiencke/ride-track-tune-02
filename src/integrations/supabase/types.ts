@@ -233,6 +233,7 @@ export type Database = {
           notes: string | null
           purchase_price: number | null
           quantity: number
+          receipt_id: string | null
           updated_at: string
           user_id: string
         }
@@ -243,6 +244,7 @@ export type Database = {
           notes?: string | null
           purchase_price?: number | null
           quantity?: number
+          receipt_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -253,6 +255,7 @@ export type Database = {
           notes?: string | null
           purchase_price?: number | null
           quantity?: number
+          receipt_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -262,6 +265,13 @@ export type Database = {
             columns: ["component_type_id"]
             isOneToOne: false
             referencedRelation: "component_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parts_inventory_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
             referencedColumns: ["id"]
           },
         ]
@@ -297,6 +307,48 @@ export type Database = {
           strava_access_token?: string | null
           strava_athlete_id?: string | null
           strava_refresh_token?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      receipts: {
+        Row: {
+          analysis_result: Json | null
+          analysis_status: string | null
+          created_at: string
+          id: string
+          image_url: string
+          original_filename: string | null
+          purchase_date: string | null
+          store_name: string | null
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_result?: Json | null
+          analysis_status?: string | null
+          created_at?: string
+          id?: string
+          image_url: string
+          original_filename?: string | null
+          purchase_date?: string | null
+          store_name?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_result?: Json | null
+          analysis_status?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          original_filename?: string | null
+          purchase_date?: string | null
+          store_name?: string | null
+          total_amount?: number | null
           updated_at?: string
           user_id?: string
         }

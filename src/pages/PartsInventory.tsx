@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Package, Wrench, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ReceiptUpload } from '@/components/ReceiptUpload';
+import { SpendingAnalytics } from '@/components/SpendingAnalytics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface InventoryItem {
   id: string;
@@ -229,124 +231,144 @@ const PartsInventory = () => {
         </div>
       </header>
 
-      <div className="container py-6 space-y-6">
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Package className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{inventory.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Items</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="container py-6">
+        <Tabs defaultValue="inventory" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+            <TabsTrigger value="receipts">Receipts</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <Wrench className="h-6 w-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">€{getTotalValue().toFixed(2)}</p>
-                  <p className="text-sm text-muted-foreground">Total Value</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-500/10 rounded-lg">
-                  <ShoppingCart className="h-6 w-6 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{getOutOfStockItems().length}</p>
-                  <p className="text-sm text-muted-foreground">Out of Stock</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Inventory List */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Your Parts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {inventory.length === 0 ? (
-              <div className="text-center py-8">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No parts in inventory</h3>
-                <p className="text-muted-foreground mb-4">
-                  Add parts to keep track of what you have at home.
-                </p>
-                <Button onClick={() => setShowAddItem(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Your First Part
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {inventory.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{item.component_type.name}</h4>
-                        {item.quantity === 0 && (
-                          <Badge variant="destructive">Out of Stock</Badge>
-                        )}
-                      </div>
-                      {item.notes && (
-                        <p className="text-sm text-muted-foreground mb-2">{item.notes}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Quantity: {item.quantity}</span>
-                        {item.purchase_price && (
-                          <span>Price: €{item.purchase_price.toFixed(2)} each</span>
-                        )}
-                        <span>Added: {new Date(item.created_at).toLocaleDateString()}</span>
-                      </div>
+          <TabsContent value="inventory" className="space-y-6">
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Package className="h-6 w-6 text-primary" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        disabled={item.quantity === 0}
-                      >
-                        -
-                      </Button>
-                      <span className="w-8 text-center">{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      >
-                        +
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteItem(item.id)}
-                        className="ml-2"
-                      >
-                        Delete
+                    <div>
+                      <p className="text-2xl font-bold">{inventory.length}</p>
+                      <p className="text-sm text-muted-foreground">Total Items</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <Wrench className="h-6 w-6 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">€{getTotalValue().toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground">Total Value</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-500/10 rounded-lg">
+                      <ShoppingCart className="h-6 w-6 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{getOutOfStockItems().length}</p>
+                      <p className="text-sm text-muted-foreground">Out of Stock</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Inventory List */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Your Parts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {inventory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No parts in inventory</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Add parts manually or upload a receipt to get started.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <Button onClick={() => setShowAddItem(true)} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add Manually
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {inventory.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium">{item.component_type.name}</h4>
+                            {item.quantity === 0 && (
+                              <Badge variant="destructive">Out of Stock</Badge>
+                            )}
+                          </div>
+                          {item.notes && (
+                            <p className="text-sm text-muted-foreground mb-2">{item.notes}</p>
+                          )}
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>Quantity: {item.quantity}</span>
+                            {item.purchase_price && (
+                              <span>Price: €{item.purchase_price.toFixed(2)} each</span>
+                            )}
+                            <span>Added: {new Date(item.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            disabled={item.quantity === 0}
+                          >
+                            -
+                          </Button>
+                          <span className="w-8 text-center">{item.quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          >
+                            +
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteItem(item.id)}
+                            className="ml-2"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="receipts" className="space-y-6">
+            <ReceiptUpload onReceiptProcessed={fetchData} />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <SpendingAnalytics />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Add Item Dialog */}
