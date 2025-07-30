@@ -14,6 +14,10 @@ interface Profile {
   strava_access_token: string | null;
   strava_refresh_token: string | null;
   strava_athlete_id: string | null;
+  avatar_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  id?: string;
 }
 
 interface StravaAthlete {
