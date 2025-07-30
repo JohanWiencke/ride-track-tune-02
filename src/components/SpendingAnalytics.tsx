@@ -1,12 +1,13 @@
-
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Euro, TrendingUp, Calendar, Receipt } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Euro, TrendingUp, Calendar, Receipt, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
 
 interface SpendingPeriod {
   period: string;
@@ -25,9 +26,11 @@ interface RecentPurchase {
 export const SpendingAnalytics = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [spendingData, setSpendingData] = useState<SpendingPeriod[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<RecentPurchase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     fetchSpendingData();
@@ -112,6 +115,72 @@ export const SpendingAnalytics = () => {
     }
   };
 
+  const resetStatistics = async () => {
+    if (!user?.id) return;
+    
+    setResetting(true);
+    try {
+      // Delete all receipts and their associated inventory items
+      const { error: inventoryError } = await supabase
+        .from('parts_inventory')
+        .delete()
+        .eq('user_id', user.id)
+        .not('receipt_id', 'is', null);
+
+      if (inventoryError) throw inventoryError;
+
+      // Delete all receipt images from storage
+      const { data: receipts } = await supabase
+        .from('receipts')
+        .select('image_url')
+        .eq('user_id', user.id);
+
+      if (receipts && receipts.length > 0) {
+        const filePaths = receipts.map(receipt => {
+          const url = receipt.image_url;
+          const path = url.split('/receipt-images/')[1];
+          return path;
+        }).filter(Boolean);
+
+        if (filePaths.length > 0) {
+          const { error: storageError } = await supabase.storage
+            .from('receipt-images')
+            .remove(filePaths);
+
+          if (storageError) {
+            console.warn('Some receipt images could not be deleted:', storageError);
+          }
+        }
+      }
+
+      // Delete all receipts
+      const { error: receiptsError } = await supabase
+        .from('receipts')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (receiptsError) throw receiptsError;
+
+      toast({
+        title: "Statistics Reset",
+        description: "All receipt data and associated inventory items have been cleared.",
+      });
+
+      // Refresh the data
+      await fetchSpendingData();
+
+    } catch (error: any) {
+      console.error('Error resetting statistics:', error);
+      toast({
+        title: "Reset Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setResetting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="glass-card">
@@ -127,6 +196,37 @@ export const SpendingAnalytics = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with Reset Button */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Spending Analytics</h2>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" className="gap-2">
+              <RotateCcw className="h-4 w-4" />
+              Reset Statistics
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset All Statistics?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete all your receipts, spending data, and associated inventory items that were added from receipts. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={resetStatistics}
+                disabled={resetting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {resetting ? "Resetting..." : "Reset Statistics"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
       {/* Spending Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {spendingData.map((period, index) => (
