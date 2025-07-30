@@ -27,6 +27,7 @@ const editBikeSchema = z.object({
   weight: z.coerce.number().positive().optional(),
   price: z.coerce.number().positive().optional(),
   purchase_date: z.date().optional(),
+  component_details: z.string().optional(),
 });
 
 type EditBikeFormData = z.infer<typeof editBikeSchema>;
@@ -43,6 +44,7 @@ interface Bike {
   total_distance: number;
   image_url?: string;
   purchase_date?: string;
+  component_details?: string;
 }
 
 interface EditBikeDialogProps {
@@ -69,6 +71,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
       weight: bike?.weight || undefined,
       price: bike?.price || undefined,
       purchase_date: bike?.purchase_date ? new Date(bike.purchase_date) : undefined,
+      component_details: bike?.component_details || '',
     },
   });
 
@@ -84,6 +87,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
         weight: bike.weight || undefined,
         price: bike.price || undefined,
         purchase_date: bike.purchase_date ? new Date(bike.purchase_date) : undefined,
+        component_details: bike.component_details || '',
       });
       setImageUrl(bike.image_url || '');
     }
@@ -105,6 +109,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
           weight: data.weight || null,
           price: data.price || null,
           purchase_date: data.purchase_date ? data.purchase_date.toISOString().split('T')[0] : null,
+          component_details: data.component_details || null,
           image_url: imageUrl || null,
           updated_at: new Date().toISOString(),
         })
@@ -321,6 +326,25 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
                 variant="bike"
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="component_details"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Component Details</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="w-full min-h-[100px] px-3 py-2 border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 rounded-md resize-none"
+                      placeholder="List key components for better valuation accuracy (e.g., Shimano Ultegra groupset, carbon wheels, premium components, etc.)"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex justify-end gap-2 pt-4">
               <Button
