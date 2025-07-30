@@ -65,14 +65,51 @@ export type Database = {
           },
         ]
       }
+      bike_valuations: {
+        Row: {
+          bike_id: string
+          created_at: string
+          estimated_value: number
+          id: string
+          valuation_date: string
+          valuation_source: string
+        }
+        Insert: {
+          bike_id: string
+          created_at?: string
+          estimated_value: number
+          id?: string
+          valuation_date?: string
+          valuation_source?: string
+        }
+        Update: {
+          bike_id?: string
+          created_at?: string
+          estimated_value?: number
+          id?: string
+          valuation_date?: string
+          valuation_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bike_valuations_bike_id_fkey"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bikes: {
         Row: {
           bike_type: string
           brand: string | null
           component_details: string | null
           created_at: string
+          estimated_value: number | null
           id: string
           image_url: string | null
+          last_valuation_date: string | null
           model: string | null
           name: string
           price: number | null
@@ -80,6 +117,7 @@ export type Database = {
           total_distance: number
           updated_at: string
           user_id: string
+          valuation_source: string | null
           weight: number | null
           year: number | null
         }
@@ -88,8 +126,10 @@ export type Database = {
           brand?: string | null
           component_details?: string | null
           created_at?: string
+          estimated_value?: number | null
           id?: string
           image_url?: string | null
+          last_valuation_date?: string | null
           model?: string | null
           name: string
           price?: number | null
@@ -97,6 +137,7 @@ export type Database = {
           total_distance?: number
           updated_at?: string
           user_id: string
+          valuation_source?: string | null
           weight?: number | null
           year?: number | null
         }
@@ -105,8 +146,10 @@ export type Database = {
           brand?: string | null
           component_details?: string | null
           created_at?: string
+          estimated_value?: number | null
           id?: string
           image_url?: string | null
+          last_valuation_date?: string | null
           model?: string | null
           name?: string
           price?: number | null
@@ -114,6 +157,7 @@ export type Database = {
           total_distance?: number
           updated_at?: string
           user_id?: string
+          valuation_source?: string | null
           weight?: number | null
           year?: number | null
         }
@@ -218,6 +262,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      valuation_history: {
+        Row: {
+          created_at: string
+          id: string
+          total_bikes_valued: number
+          total_estimated_value: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          total_bikes_valued: number
+          total_estimated_value: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          total_bikes_valued?: number
+          total_estimated_value?: number
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

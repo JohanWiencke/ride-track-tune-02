@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,17 +54,24 @@ export const GarageValueWidget = () => {
     if (!user) return;
 
     try {
+      // Use raw SQL query since TypeScript types aren't updated yet
       const { data, error } = await supabase
-        .from('bike_valuations')
-        .select(`
-          *,
-          bikes!inner(user_id, name, brand, model)
-        `)
-        .eq('bikes.user_id', user.id)
-        .order('valuation_date', { ascending: true });
+        .rpc('get_bike_valuations_with_bikes', { user_id_param: user.id });
 
-      if (error) throw error;
-      setBikeValuations(data || []);
+      if (error) {
+        console.error('Error fetching bike valuations:', error);
+        // Fallback: try direct query without joins for now
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('bike_valuations' as any)
+          .select('*')
+          .order('valuation_date', { ascending: true });
+        
+        if (!fallbackError) {
+          setBikeValuations(fallbackData || []);
+        }
+      } else {
+        setBikeValuations(data || []);
+      }
     } catch (error) {
       console.error('Error fetching bike valuations:', error);
     }
@@ -103,7 +111,7 @@ export const GarageValueWidget = () => {
 
     try {
       const { data, error } = await supabase
-        .from('valuation_history')
+        .from('valuation_history' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
@@ -124,7 +132,7 @@ export const GarageValueWidget = () => {
       cutoffDate.setDate(cutoffDate.getDate() - 3.5);
 
       const { data: recentValuations, error } = await supabase
-        .from('valuation_history')
+        .from('valuation_history' as any)
         .select('created_at')
         .eq('user_id', user.id)
         .gte('created_at', cutoffDate.toISOString())
@@ -161,7 +169,7 @@ export const GarageValueWidget = () => {
 
     try {
       const { error } = await supabase
-        .from('valuation_history')
+        .from('valuation_history' as any)
         .insert({
           user_id: user.id,
           total_estimated_value: estimatedValue,
@@ -194,7 +202,7 @@ export const GarageValueWidget = () => {
       if (data.success) {
         // Save individual bike valuation to bike_valuations table
         const { error: valuationError } = await supabase
-          .from('bike_valuations')
+          .from('bike_valuations' as any)
           .insert({
             bike_id: bikeId,
             estimated_value: data.estimatedValue,
@@ -214,7 +222,7 @@ export const GarageValueWidget = () => {
       } else {
         throw new Error(data.error);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error valuating bike:', error);
       toast.error(`Valuation failed: ${error.message}`);
       return { success: false, estimatedValue: 0 };
@@ -228,7 +236,7 @@ export const GarageValueWidget = () => {
       for (const bike of bikes) {
         if (bike.price && bike.purchase_date) {
           const { data: existingValuation } = await supabase
-            .from('bike_valuations')
+            .from('bike_valuations' as any)
             .select('id')
             .eq('bike_id', bike.id)
             .eq('valuation_source', 'purchase')
@@ -236,7 +244,7 @@ export const GarageValueWidget = () => {
 
           if (!existingValuation) {
             await supabase
-              .from('bike_valuations')
+              .from('bike_valuations' as any)
               .insert({
                 bike_id: bike.id,
                 estimated_value: bike.price,
