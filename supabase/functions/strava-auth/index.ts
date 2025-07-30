@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       const redirectUri = 'https://preview--ride-track-tune-02.lovable.app/api/strava'
       const scope = 'read,activity:read,profile:read_all'
 
-      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}&state=strava`
+      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}`
 
       return new Response(
         JSON.stringify({ authUrl }),
