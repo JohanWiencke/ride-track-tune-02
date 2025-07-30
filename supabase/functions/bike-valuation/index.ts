@@ -32,7 +32,27 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    const { bikeId } = await req.json();
+    const requestBody = await req.json();
+    const { bikeId, skipRateLimit, batchComplete, totalEstimatedValue, totalBikesValued } = requestBody;
+
+    // Check rate limiting - only allow valuation twice per week (3.5 days between valuations)
+    if (!skipRateLimit) {
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3.5);
+
+      const { data: recentValuations, error: rateLimitError } = await supabase
+        .from('bikes')
+        .select('last_valuation_date')
+        .eq('user_id', user.id)
+        .gte('last_valuation_date', threeDaysAgo.toISOString())
+        .limit(1);
+
+      if (rateLimitError) {
+        console.error('Error checking rate limit:', rateLimitError);
+      } else if (recentValuations && recentValuations.length > 0) {
+        throw new Error('Rate limit exceeded. You can only valuate your garage twice per week.');
+      }
+    }
     
     // Get bike details
     const { data: bike, error: bikeError } = await supabase
@@ -122,6 +142,21 @@ serve(async (req) => {
 
     if (updateError) {
       throw new Error(`Failed to update bike valuation: ${updateError.message}`);
+    }
+
+    // If this is a batch valuation completion, save to history
+    if (batchComplete) {
+      const { error: historyError } = await supabase
+        .from('valuation_history')
+        .insert({
+          user_id: user.id,
+          total_estimated_value: totalEstimatedValue,
+          total_bikes_valued: totalBikesValued
+        });
+
+      if (historyError) {
+        console.error('Error saving valuation history:', historyError);
+      }
     }
 
     return new Response(JSON.stringify({
