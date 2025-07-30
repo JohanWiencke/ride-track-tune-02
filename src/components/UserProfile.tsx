@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,10 +47,10 @@ export function UserProfile() {
     if (!user) return;
 
     try {
-      // Fetch user profile
+      // Fetch user profile with all required fields
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('user_id, strava_access_token, strava_refresh_token, strava_athlete_id, avatar_url, created_at, updated_at, id')
         .eq('user_id', user.id)
         .single();
 
@@ -60,10 +59,22 @@ export function UserProfile() {
       }
 
       if (profileData) {
-        setProfile(profileData);
+        // Ensure all required fields are present, even if null
+        const completeProfile: Profile = {
+          user_id: profileData.user_id,
+          strava_access_token: profileData.strava_access_token,
+          strava_refresh_token: profileData.strava_refresh_token,
+          strava_athlete_id: profileData.strava_athlete_id,
+          avatar_url: profileData.avatar_url,
+          created_at: profileData.created_at,
+          updated_at: profileData.updated_at,
+          id: profileData.id,
+        };
+        
+        setProfile(completeProfile);
 
         // If user has Strava connected, fetch athlete info
-        if (profileData.strava_access_token) {
+        if (completeProfile.strava_access_token) {
           await fetchStravaAthlete();
         }
       }
