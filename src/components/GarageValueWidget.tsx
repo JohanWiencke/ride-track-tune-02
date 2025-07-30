@@ -134,25 +134,29 @@ export const GarageValueWidget = () => {
     }
   };
 
-  const valuateBike = async (bikeId: string) => {
+  const valuateBike = async (bikeId: string, isLastBike: boolean = false, totalEstimated: number = 0, bikesValued: number = 0) => {
     try {
       const { data, error } = await supabase.functions.invoke('bike-valuation', {
-        body: { bikeId }
+        body: { 
+          bikeId,
+          batchComplete: isLastBike,
+          totalEstimatedValue: totalEstimated,
+          totalBikesValued: bikesValued
+        }
       });
 
       if (error) throw error;
 
       if (data.success) {
         toast.success(`Bike valued at €${data.estimatedValue}`);
-        await fetchBikes(); // Refresh data
-        return true;
+        return { success: true, estimatedValue: data.estimatedValue };
       } else {
         throw new Error(data.error);
       }
     } catch (error) {
       console.error('Error valuating bike:', error);
       toast.error(`Valuation failed: ${error.message}`);
-      return false;
+      return { success: false, estimatedValue: 0 };
     }
   };
 
@@ -164,19 +168,20 @@ export const GarageValueWidget = () => {
 
     setIsValuating(true);
     let successCount = 0;
+    let totalEstimated = 0;
     
-    for (const bike of bikes) {
-      const success = await valuateBike(bike.id);
-      if (success) successCount++;
+    for (let i = 0; i < bikes.length; i++) {
+      const bike = bikes[i];
+      const isLastBike = i === bikes.length - 1;
+      
+      const result = await valuateBike(bike.id, isLastBike, totalEstimated, successCount + 1);
+      if (result.success) {
+        successCount++;
+        totalEstimated += result.estimatedValue;
+      }
       
       // Small delay between requests to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    // Save to history after successful valuation
-    if (successCount > 0) {
-      const newEstimatedTotal = bikes.reduce((sum, bike) => sum + (bike.estimated_value || 0), 0);
-      await saveValuationHistory(newEstimatedTotal, successCount);
     }
     
     setIsValuating(false);
@@ -184,6 +189,7 @@ export const GarageValueWidget = () => {
     
     // Refresh data and rate limit check
     await fetchBikes();
+    await fetchValuationHistory();
   };
 
   useEffect(() => {
