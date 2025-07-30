@@ -56,6 +56,10 @@ serve(async (req) => {
 
       const tokenData = await tokenResponse.json();
 
+      if (!tokenData.athlete) {
+        throw new Error('No athlete data returned from Strava');
+      }
+
       const { error: updateError } = await supabase.from('profiles').upsert({
         user_id: user.id,
         strava_access_token: tokenData.access_token,
@@ -65,7 +69,7 @@ serve(async (req) => {
 
       if (updateError) throw new Error(`DB update failed: ${updateError.message}`);
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, athlete: tokenData.athlete }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
