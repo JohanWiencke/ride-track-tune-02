@@ -18,6 +18,15 @@ interface Bike {
   last_valuation_date: string | null;
   price: number | null;
   created_at?: string;
+  purchase_date?: string;
+}
+
+interface BikeValuation {
+  id: string;
+  bike_id: string;
+  valuation_date: string;
+  estimated_value: number;
+  valuation_source: string;
 }
 
 interface ValuationHistory {
@@ -31,6 +40,7 @@ export const GarageValueWidget = () => {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [bikes, setBikes] = useState<Bike[]>([]);
+  const [bikeValuations, setBikeValuations] = useState<BikeValuation[]>([]);
   const [isValuating, setIsValuating] = useState(false);
   const [totalEstimatedValue, setTotalEstimatedValue] = useState(0);
   const [totalOriginalValue, setTotalOriginalValue] = useState(0);
@@ -39,6 +49,26 @@ export const GarageValueWidget = () => {
   const [showChart, setShowChart] = useState(false);
   const [canValuate, setCanValuate] = useState(true);
   const [timeFilter, setTimeFilter] = useState<'2w' | '1m' | '3m' | '6m' | '1y' | 'all'>('all');
+
+  const fetchBikeValuations = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('bike_valuations')
+        .select(`
+          *,
+          bikes!inner(user_id, name, brand, model)
+        `)
+        .eq('bikes.user_id', user.id)
+        .order('valuation_date', { ascending: true });
+
+      if (error) throw error;
+      setBikeValuations(data || []);
+    } catch (error) {
+      console.error('Error fetching bike valuations:', error);
+    }
+  };
 
   const fetchBikes = async () => {
     if (!user) return;
@@ -148,6 +178,15 @@ export const GarageValueWidget = () => {
       if (error) throw error;
 
       if (data.success) {
+        // Save individual bike valuation
+        await supabase
+          .from('bike_valuations')
+          .insert({
+            bike_id: bikeId,
+            estimated_value: data.estimatedValue,
+            valuation_source: 'automated'
+          });
+        
         toast.success(`Bike valued at €${data.estimatedValue}`);
         return { success: true, estimatedValue: data.estimatedValue };
       } else {
@@ -157,6 +196,43 @@ export const GarageValueWidget = () => {
       console.error('Error valuating bike:', error);
       toast.error(`Valuation failed: ${error.message}`);
       return { success: false, estimatedValue: 0 };
+    }
+  };
+
+  const updateGarageValue = async () => {
+    setLoading(true);
+    try {
+      // For bikes with original price, create initial valuation records if they don't exist
+      for (const bike of bikes) {
+        if (bike.price && bike.purchase_date) {
+          const { data: existingValuation } = await supabase
+            .from('bike_valuations')
+            .select('id')
+            .eq('bike_id', bike.id)
+            .eq('valuation_source', 'purchase')
+            .single();
+
+          if (!existingValuation) {
+            await supabase
+              .from('bike_valuations')
+              .insert({
+                bike_id: bike.id,
+                estimated_value: bike.price,
+                valuation_date: bike.purchase_date,
+                valuation_source: 'purchase'
+              });
+          }
+        }
+      }
+      
+      await fetchBikes();
+      await fetchBikeValuations();
+      toast.success('Garage value updated!');
+    } catch (error) {
+      console.error('Error updating garage value:', error);
+      toast.error('Failed to update garage value');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -189,12 +265,16 @@ export const GarageValueWidget = () => {
     
     // Refresh data and rate limit check
     await fetchBikes();
+    await fetchBikeValuations();
     await fetchValuationHistory();
   };
 
   useEffect(() => {
-    fetchBikes();
-    fetchValuationHistory();
+    if (user) {
+      fetchBikes();
+      fetchBikeValuations();
+      fetchValuationHistory();
+    }
   }, [user]);
 
   if (loading) {
@@ -291,6 +371,16 @@ export const GarageValueWidget = () => {
                 {valuedBikesCount === 0 ? 'Get Market Valuation' : 'Update Valuations'}
               </>
             )}
+          </Button>
+          
+          <Button
+            onClick={updateGarageValue}
+            disabled={loading}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Update
           </Button>
           
           <Button

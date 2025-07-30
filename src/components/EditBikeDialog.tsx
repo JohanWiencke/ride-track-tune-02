@@ -2,16 +2,21 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ImageUpload } from './ImageUpload';
 import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
 
 const editBikeSchema = z.object({
   name: z.string().min(1, 'Bike name is required'),
@@ -21,6 +26,7 @@ const editBikeSchema = z.object({
   year: z.coerce.number().min(1900).max(new Date().getFullYear() + 1).optional(),
   weight: z.coerce.number().positive().optional(),
   price: z.coerce.number().positive().optional(),
+  purchase_date: z.date().optional(),
 });
 
 type EditBikeFormData = z.infer<typeof editBikeSchema>;
@@ -36,6 +42,7 @@ interface Bike {
   price?: number;
   total_distance: number;
   image_url?: string;
+  purchase_date?: string;
 }
 
 interface EditBikeDialogProps {
@@ -61,6 +68,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
       year: bike?.year || undefined,
       weight: bike?.weight || undefined,
       price: bike?.price || undefined,
+      purchase_date: bike?.purchase_date ? new Date(bike.purchase_date) : undefined,
     },
   });
 
@@ -75,6 +83,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
         year: bike.year || undefined,
         weight: bike.weight || undefined,
         price: bike.price || undefined,
+        purchase_date: bike.purchase_date ? new Date(bike.purchase_date) : undefined,
       });
       setImageUrl(bike.image_url || '');
     }
@@ -95,6 +104,7 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
           year: data.year || null,
           weight: data.weight || null,
           price: data.price || null,
+          purchase_date: data.purchase_date ? data.purchase_date.toISOString().split('T')[0] : null,
           image_url: imageUrl || null,
           updated_at: new Date().toISOString(),
         })
@@ -257,6 +267,49 @@ export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: Edit
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="purchase_date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Purchase Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="space-y-2">
               <Label>Bike Image</Label>
