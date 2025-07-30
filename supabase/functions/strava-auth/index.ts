@@ -65,7 +65,19 @@ serve(async (req) => {
 
       if (updateError) throw new Error(`DB update failed: ${updateError.message}`);
 
-      return new Response(JSON.stringify({ success: true }), {
+      // Fetch athlete info from Strava API using the new access token
+      const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+
+      if (!athleteResponse.ok) {
+        const athleteErr = await athleteResponse.text();
+        throw new Error(`Failed to fetch athlete info: ${athleteErr}`);
+      }
+
+      const athlete = await athleteResponse.json();
+
+      return new Response(JSON.stringify({ success: true, athlete }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }

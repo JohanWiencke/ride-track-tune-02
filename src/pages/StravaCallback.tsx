@@ -42,10 +42,15 @@ const StravaCallback = () => {
           console.log('StravaCallback: Token exchange response', { data, error });
 
           if (error) throw error;
+          if (!data.success) throw new Error(data.error || 'Unknown error');
+
+          const athleteName = data.athlete
+            ? `${data.athlete.firstname} ${data.athlete.lastname}`
+            : 'your Strava account';
 
           toast({
             title: "Strava Connected!",
-            description: `Connected as ${data.athlete.firstname} ${data.athlete.lastname}. Syncing your data...`,
+            description: `Connected as ${athleteName}. Syncing your data...`,
           });
 
           // Refresh user profile to reflect new tokens
