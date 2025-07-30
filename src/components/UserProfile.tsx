@@ -52,9 +52,9 @@ export function UserProfile() {
         .from('profiles')
         .select('user_id, strava_access_token, strava_refresh_token, strava_athlete_id, avatar_url, created_at, updated_at, id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError && profileError.code !== 'PGRST116') {
+      if (profileError) {
         throw profileError;
       }
 
@@ -76,6 +76,26 @@ export function UserProfile() {
         // If user has Strava connected, fetch athlete info
         if (completeProfile.strava_access_token) {
           await fetchStravaAthlete();
+        }
+      } else {
+        // Create profile if it doesn't exist
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            strava_access_token: null,
+            strava_refresh_token: null,
+            strava_athlete_id: null
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw createError;
+        }
+
+        if (newProfile) {
+          setProfile(newProfile);
         }
       }
     } catch (error: any) {
