@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -75,55 +74,16 @@ serve(async (req) => {
       console.error('OCR API request failed:', ocrResponse.status, ocrResponse.statusText);
       console.error('OCR API error response:', errorText);
       
-      // If OCR.space fails, create a mock analysis to prevent total failure
-      console.log('OCR failed, creating mock analysis...');
-      const mockAnalysisResults = {
-        items: [
-          {
-            name: 'Bike Part (from receipt)',
-            quantity: 1,
-            unit_price: 25.00,
-            total_price: 25.00,
-            category: 'accessories'
-          }
-        ],
-        storeName: 'Bike Shop',
-        date: new Date().toISOString().split('T')[0],
-        totalFromText: 25.00
-      };
-
-      // Update receipt with mock analysis
-      const { error: updateError } = await supabase
+      // Update receipt status to failed
+      await supabase
         .from('receipts')
         .update({
-          analysis_status: 'completed',
-          analysis_result: mockAnalysisResults.items,
-          total_amount: mockAnalysisResults.totalFromText,
-          store_name: mockAnalysisResults.storeName,
-          purchase_date: mockAnalysisResults.date,
+          analysis_status: 'failed',
           updated_at: new Date().toISOString()
         })
         .eq('id', receiptId);
 
-      if (updateError) {
-        console.error('Failed to update receipt with mock data:', updateError);
-        throw updateError;
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          itemsAdded: 0,
-          totalAmount: mockAnalysisResults.totalFromText,
-          storeName: mockAnalysisResults.storeName,
-          itemsFound: mockAnalysisResults.items.length,
-          note: 'OCR analysis failed, created placeholder entry. Please edit the receipt details manually.'
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      throw new Error(`OCR API failed with status ${ocrResponse.status}: ${errorText}`);
     }
 
     const ocrResult = await ocrResponse.json();
@@ -131,11 +91,31 @@ serve(async (req) => {
 
     if (ocrResult.IsErroredOnProcessing) {
       console.error('OCR processing error:', ocrResult.ErrorMessage);
+      
+      // Update receipt status to failed
+      await supabase
+        .from('receipts')
+        .update({
+          analysis_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', receiptId);
+
       throw new Error(`OCR processing failed: ${ocrResult.ErrorMessage}`);
     }
 
     if (!ocrResult.ParsedResults || ocrResult.ParsedResults.length === 0) {
       console.error('No parsed results from OCR');
+      
+      // Update receipt status to failed
+      await supabase
+        .from('receipts')
+        .update({
+          analysis_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', receiptId);
+
       throw new Error('No text could be extracted from the image');
     }
 
@@ -144,6 +124,16 @@ serve(async (req) => {
 
     if (!extractedText || extractedText.trim() === '') {
       console.error('Empty text extracted from OCR');
+      
+      // Update receipt status to failed
+      await supabase
+        .from('receipts')
+        .update({
+          analysis_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', receiptId);
+
       throw new Error('No text could be extracted from the image');
     }
 
@@ -272,7 +262,7 @@ serve(async (req) => {
 
       if (inventoryError) {
         console.error('Failed to add inventory items:', inventoryError);
-        // Don't throw error, as the receipt was analyzed successfully
+        throw inventoryError;
       } else {
         console.log(`Added ${inventoryItems.length} items to inventory`);
       }
