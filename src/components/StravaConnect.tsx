@@ -1,10 +1,9 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
 interface StravaConnectProps {
   isConnected: boolean;
@@ -16,116 +15,21 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const { toast } = useToast();
-  const { user, loading } = useAuth();
-
-  console.log('StravaConnect render - user:', !!user, 'loading:', loading);
-
-  // Check connection status when component mounts and when user changes
-  useEffect(() => {
-    if (!loading && user) {
-      console.log('Checking Strava connection for authenticated user');
-      checkStravaConnection();
-    } else if (!loading && !user) {
-      console.log('No user found, setting disconnected status');
-      setConnectionStatus('disconnected');
-      onConnectionChange(false);
-    }
-  }, [user, loading]);
-
-  const checkStravaConnection = async () => {
-    console.log('Checking Strava connection...', { user: !!user, userId: user?.id });
-    
-    if (!user) {
-      console.log('No user found, setting disconnected');
-      setConnectionStatus('disconnected');
-      onConnectionChange(false);
-      return;
-    }
-
-    try {
-      console.log('Checking Strava connection for user:', user.id);
-      
-      // Check if user has a profile record with Strava token
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('strava_access_token')
-        .eq('user_id', user.id)
-        .single();
-
-      console.log('Profile check result:', { profile, profileError });
-
-      if (profileError) {
-        if (profileError.code === 'PGRST116') {
-          // No profile found, create one
-          console.log('No profile found, creating one...');
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: user.id,
-              strava_access_token: null,
-              strava_refresh_token: null,
-              strava_athlete_id: null
-            });
-
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
-          }
-          
-          setConnectionStatus('disconnected');
-          onConnectionChange(false);
-          return;
-        } else {
-          console.error('Error checking profile:', profileError);
-          setConnectionStatus('disconnected');
-          onConnectionChange(false);
-          return;
-        }
-      }
-
-      // Check if user has Strava token
-      const hasStravaToken = !!profile?.strava_access_token;
-      console.log('Strava token exists:', hasStravaToken);
-      
-      setConnectionStatus(hasStravaToken ? 'connected' : 'disconnected');
-      onConnectionChange(hasStravaToken);
-      
-    } catch (error) {
-      console.error('Error checking Strava connection:', error);
-      setConnectionStatus('disconnected');
-      onConnectionChange(false);
-    }
-  };
 
   const handleConnect = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to connect Strava.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsConnecting(true);
     try {
-      console.log('Starting Strava connection...');
-      
       // Get the Strava authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('strava-auth', {
         body: { action: 'get_auth_url' }
       });
 
-      console.log('Auth URL response:', { data, error });
-
       if (error) throw error;
 
       // Open the auth URL in the same window
-      console.log('Redirecting to Strava auth URL:', data.authUrl);
       window.location.href = data.authUrl;
     } catch (error: any) {
-      console.error('Connection error:', error);
       toast({
         title: "Connection Error",
         description: error.message || "Failed to connect to Strava",
@@ -136,8 +40,6 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
   };
 
   const handleDisconnect = async () => {
-    if (!user) return;
-    
     setIsDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke('strava-auth', {
@@ -151,7 +53,6 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
         description: "Your Strava account has been disconnected.",
       });
       
-      setConnectionStatus('disconnected');
       onConnectionChange(false);
     } catch (error: any) {
       toast({
@@ -165,14 +66,9 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
   };
 
   const handleSync = async () => {
-    if (!user) return;
-    
     setIsSyncing(true);
     try {
-      console.log('Starting Strava sync...');
       const { data, error } = await supabase.functions.invoke('strava-sync');
-
-      console.log('Sync response:', { data, error });
 
       if (error) throw error;
 
@@ -184,7 +80,6 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
       // Trigger refresh of bikes list
       onSyncComplete?.();
     } catch (error: any) {
-      console.error('Sync error:', error);
       toast({
         title: "Sync Error",
         description: error.message || "Failed to sync Strava activities",
@@ -195,49 +90,9 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
     }
   };
 
-  // Show loading state while checking auth or connection status
-  if (loading || connectionStatus === 'checking') {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-            <p className="text-sm text-muted-foreground">
-              {loading ? "Checking authentication..." : "Checking Strava connection..."}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show sign-in message only if user is definitively not authenticated
-  if (!user) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.172"/>
-            </svg>
-            Strava Integration
-          </CardTitle>
-          <CardDescription>
-            Please sign in to connect your Strava account and sync your bike garage.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            You need to be signed in to connect your Strava account and access your gear list.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
-      {connectionStatus === 'disconnected' ? (
+      {!isConnected ? (
         <>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -247,18 +102,10 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
               Strava Integration
             </CardTitle>
             <CardDescription>
-              Connect your Strava account to automatically sync your bike garage and cycling activities with distances. This requires full access to your Strava account to read your gear list.
+              Connect your Strava account to automatically sync your bike garage and cycling activities with distances.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground mb-4">
-              <p className="font-medium mb-2">Permissions needed:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Access to your bike/gear list</li>
-                <li>Read your cycling activities</li>
-                <li>View activity details and distances</li>
-              </ul>
-            </div>
             <Button 
               onClick={handleConnect}
               disabled={isConnecting}
@@ -289,7 +136,7 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
               variant="outline"
               className="w-full"
             >
-              {isSyncing ? "Syncing..." : "Sync Activities & Gear"}
+              {isSyncing ? "Syncing..." : "Sync Activities"}
             </Button>
             <Button 
               onClick={handleDisconnect}

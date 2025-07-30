@@ -5,14 +5,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 const StravaCallback = () => {
-  const { user, refreshUser } = useAuth();  // Added refreshUser function to reload user data
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Run only if user is fully loaded
-    if (!user) return;
-
     const handleStravaCallback = async () => {
       console.log('StravaCallback: Starting callback handling');
       const urlParams = new URLSearchParams(window.location.search);
@@ -32,52 +29,24 @@ const StravaCallback = () => {
         return;
       }
 
-      if (code) {
-        console.log('StravaCallback: Found code, exchanging token');
+      if (code && user) {
+        console.log('StravaCallback: Found code and user, exchanging token');
         try {
           const { data, error } = await supabase.functions.invoke('strava-auth', {
-            body: { action: 'exchange_code', code }
+            body: { action: 'exchange_token', code }
           });
 
           console.log('StravaCallback: Token exchange response', { data, error });
 
           if (error) throw error;
-          if (!data.success) throw new Error(data.error || 'Unknown error');
 
-          const athleteName = data.athlete
-            ? `${data.athlete.firstname} ${data.athlete.lastname}`
-            : 'your Strava account';
-
+          console.log('StravaCallback: Success, showing toast');
           toast({
             title: "Strava Connected!",
-            description: `Connected as ${athleteName}. Syncing your data...`,
+            description: `Connected as ${data.athlete.firstname} ${data.athlete.lastname}`,
           });
-
-          // Refresh user profile to reflect new tokens
-          await refreshUser();
-
-          try {
-            console.log('StravaCallback: Starting automatic sync...');
-            const { data: syncData, error: syncError } = await supabase.functions.invoke('strava-sync');
-            
-            if (syncError) {
-              console.warn('StravaCallback: Sync failed, but connection was successful', syncError);
-              toast({
-                title: "Sync Warning",
-                description: "Connection successful, but sync failed. You can manually sync later.",
-                variant: "default",
-              });
-            } else {
-              console.log('StravaCallback: Automatic sync successful');
-              toast({
-                title: "Sync Complete",
-                description: "Your Strava bikes and activities have been synced!",
-              });
-            }
-          } catch (syncError) {
-            console.warn('StravaCallback: Auto-sync failed:', syncError);
-          }
-
+          
+          // Navigate back with success parameter
           navigate('/?strava_connected=true');
           return;
         } catch (error: any) {
@@ -89,19 +58,15 @@ const StravaCallback = () => {
           });
         }
       } else {
-        console.log('StravaCallback: Missing code', { code: !!code });
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to connect Strava.",
-          variant: "destructive",
-        });
+        console.log('StravaCallback: Missing code or user', { code: !!code, user: !!user });
       }
 
+      console.log('StravaCallback: Navigating back to home');
       navigate('/');
     };
 
     handleStravaCallback();
-  }, [user, toast, navigate, refreshUser]);
+  }, [user, toast, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
