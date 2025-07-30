@@ -70,14 +70,17 @@ export type Database = {
           bike_type: string | null
           brand: string | null
           created_at: string
+          estimated_value: number | null
           id: string
           image_url: string | null
+          last_valuation_date: string | null
           model: string | null
           name: string
           price: number | null
           total_distance: number | null
           updated_at: string
           user_id: string
+          valuation_source: string | null
           weight: number | null
           year: number | null
         }
@@ -85,14 +88,17 @@ export type Database = {
           bike_type?: string | null
           brand?: string | null
           created_at?: string
+          estimated_value?: number | null
           id?: string
           image_url?: string | null
+          last_valuation_date?: string | null
           model?: string | null
           name: string
           price?: number | null
           total_distance?: number | null
           updated_at?: string
           user_id: string
+          valuation_source?: string | null
           weight?: number | null
           year?: number | null
         }
@@ -100,14 +106,17 @@ export type Database = {
           bike_type?: string | null
           brand?: string | null
           created_at?: string
+          estimated_value?: number | null
           id?: string
           image_url?: string | null
+          last_valuation_date?: string | null
           model?: string | null
           name?: string
           price?: number | null
           total_distance?: number | null
           updated_at?: string
           user_id?: string
+          valuation_source?: string | null
           weight?: number | null
           year?: number | null
         }

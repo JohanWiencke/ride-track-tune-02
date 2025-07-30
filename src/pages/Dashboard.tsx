@@ -15,6 +15,7 @@ import { StravaConnect } from '@/components/StravaConnect';
 import { TimeBasedGreeting } from '@/components/TimeBasedGreeting';
 import { WearProgress } from '@/components/WearProgress';
 import { InventoryWidget } from '@/components/InventoryWidget';
+import { GarageValueWidget } from '@/components/GarageValueWidget';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { UserProfilePopup } from '@/components/UserProfilePopup';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -379,10 +380,16 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Inventory Stats Section */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">{t('partsInventory')}</h2>
-          <InventoryWidget />
+        {/* Inventory & Valuation Stats Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold">{t('partsInventory')}</h2>
+            <InventoryWidget />
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold">Garage Valuation</h2>
+            <GarageValueWidget />
+          </div>
         </div>
 
         {/* Bikes Section */}
