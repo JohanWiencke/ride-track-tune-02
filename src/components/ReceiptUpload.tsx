@@ -55,7 +55,7 @@ export const ReceiptUpload = ({ onReceiptProcessed }: ReceiptUploadProps) => {
 
       if (uploadError) throw uploadError;
 
-      const imageUrl = `${supabase.supabaseUrl}/storage/v1/object/public/receipt-images/${fileName}`;
+      const imageUrl = `https://bzizesnqjsmserojzeoc.supabase.co/storage/v1/object/public/receipt-images/${fileName}`;
 
       // Create receipt record
       const { data: receiptData, error: receiptError } = await supabase
