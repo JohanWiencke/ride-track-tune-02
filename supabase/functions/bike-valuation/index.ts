@@ -38,10 +38,10 @@ serve(async (req) => {
     // Rate limiting disabled per user request
     console.log('Rate limiting disabled - proceeding with valuation');
     
-    // Get bike details
+    // Get bike details including purchase date and mileage
     const { data: bike, error: bikeError } = await supabase
       .from('bikes')
-      .select('*')
+      .select('*, total_distance, purchase_date')
       .eq('id', bikeId)
       .eq('user_id', user.id)
       .single();
@@ -109,9 +109,54 @@ serve(async (req) => {
     const q3Index = Math.floor(prices.length * 0.75);
     const filteredPrices = prices.slice(q1Index, q3Index + 1);
     
-    const estimatedValue = filteredPrices.reduce((sum, price) => sum + price, 0) / filteredPrices.length;
+    let baseEstimatedValue = filteredPrices.reduce((sum, price) => sum + price, 0) / filteredPrices.length;
     
-    console.log(`Found ${prices.length} prices, filtered to ${filteredPrices.length}, estimated value: ${estimatedValue}`);
+    // Apply depreciation based on age and mileage
+    let ageDepreciation = 1.0;
+    let mileageDepreciation = 1.0;
+    
+    // Calculate age-based depreciation if purchase date is available
+    if (bike.purchase_date) {
+      const purchaseDate = new Date(bike.purchase_date);
+      const now = new Date();
+      const ageInYears = (now.getTime() - purchaseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      
+      // Bikes depreciate approximately 15-20% per year for first 3 years, then slower
+      if (ageInYears <= 3) {
+        ageDepreciation = Math.max(0.3, 1 - (ageInYears * 0.18)); // 18% per year, minimum 30% of original
+      } else {
+        ageDepreciation = Math.max(0.2, 0.46 - ((ageInYears - 3) * 0.08)); // 8% per year after 3 years, minimum 20%
+      }
+      
+      console.log(`Age depreciation: ${ageInYears.toFixed(1)} years, factor: ${ageDepreciation.toFixed(2)}`);
+    }
+    
+    // Calculate mileage-based depreciation if total distance is available
+    if (bike.total_distance && bike.total_distance > 0) {
+      const distanceInKm = bike.total_distance;
+      
+      // High-mileage bikes depreciate more (above 15,000km per year is high usage)
+      const expectedAnnualKm = 8000; // Average cycling distance per year
+      const ageInYears = bike.purchase_date ? 
+        (new Date().getTime() - new Date(bike.purchase_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000) : 
+        3; // Default to 3 years if no purchase date
+      
+      const expectedDistance = expectedAnnualKm * Math.max(1, ageInYears);
+      const mileageRatio = distanceInKm / expectedDistance;
+      
+      if (mileageRatio > 1.5) {
+        mileageDepreciation = Math.max(0.7, 1 - ((mileageRatio - 1) * 0.2)); // High mileage penalty
+      } else if (mileageRatio < 0.5) {
+        mileageDepreciation = Math.min(1.1, 1 + ((0.5 - mileageRatio) * 0.1)); // Low mileage bonus
+      }
+      
+      console.log(`Mileage: ${distanceInKm}km, expected: ${expectedDistance.toFixed(0)}km, factor: ${mileageDepreciation.toFixed(2)}`);
+    }
+    
+    const estimatedValue = baseEstimatedValue * ageDepreciation * mileageDepreciation;
+    
+    console.log(`Base value: €${baseEstimatedValue.toFixed(0)}, Age factor: ${ageDepreciation.toFixed(2)}, Mileage factor: ${mileageDepreciation.toFixed(2)}, Final: €${estimatedValue.toFixed(0)}`);
+    console.log(`Found ${prices.length} prices, filtered to ${filteredPrices.length}`);
 
     // Update bike with estimated value
     const { error: updateError } = await supabase

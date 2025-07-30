@@ -439,55 +439,58 @@ export const GarageValueWidget = () => {
                   );
                 }
 
-                // Find the earliest purchase date and latest date (today or last valuation)
+                // Find the earliest purchase date - this is our start point
                 const earliestDate = bikesWithData.reduce((earliest, bike) => {
                   const bikeDate = new Date(bike.purchase_date!);
                   return !earliest || bikeDate < earliest ? bikeDate : earliest;
                 }, null as Date | null);
 
+                // End date is always today
                 const today = new Date();
-                const latestValuationDate = bikeValuations.reduce((latest, val) => {
-                  const valDate = new Date(val.valuation_date);
-                  return !latest || valDate > latest ? valDate : latest;
-                }, null as Date | null);
 
-                const endDate = latestValuationDate && latestValuationDate > today ? latestValuationDate : today;
-
-                // Apply time filter
-                const startDate = timeFilter === 'all' ? earliestDate : 
-                  new Date(now.getTime() - (
+                // Apply time filter from the earliest date, not from a calculated offset
+                let startDate = earliestDate;
+                if (timeFilter !== 'all' && earliestDate) {
+                  const filterStartDate = new Date(today.getTime() - (
                     timeFilter === '2w' ? 14 * 24 * 60 * 60 * 1000 :
                     timeFilter === '1m' ? 30 * 24 * 60 * 60 * 1000 :
                     timeFilter === '3m' ? 90 * 24 * 60 * 60 * 1000 :
                     timeFilter === '6m' ? 180 * 24 * 60 * 60 * 1000 :
                     365 * 24 * 60 * 60 * 1000
                   ));
+                  // Use the later of the two dates (don't go before earliest purchase)
+                  startDate = filterStartDate > earliestDate ? filterStartDate : earliestDate;
+                }
 
-                if (!startDate) return null;
+                if (!startDate) {
+                  return (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center text-muted-foreground">
+                        <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No bike purchase data available</p>
+                        <p className="text-xs">Add purchase dates to bikes to see the timeline</p>
+                      </div>
+                    </div>
+                  );
+                }
 
-                // Create timeline data for each bike
+                // Create timeline data for each bike from purchase date to today
                 const bikeTimelines = bikesWithData.map((bike, index) => {
                   const bikeColor = colors[index % colors.length];
                   const dataPoints = [];
 
-                  // Add purchase point if within date range
+                  // Always add purchase point (this is the start of our timeline)
                   const purchaseDate = new Date(bike.purchase_date!);
-                  if (purchaseDate >= startDate) {
-                    dataPoints.push({
-                      date: bike.purchase_date!,
-                      timestamp: purchaseDate.getTime(),
-                      value: bike.price!,
-                      type: 'purchase'
-                    });
-                  }
+                  dataPoints.push({
+                    date: bike.purchase_date!,
+                    timestamp: purchaseDate.getTime(),
+                    value: bike.price!,
+                    type: 'purchase'
+                  });
 
-                  // Add valuation points for this bike within date range
-                  const filteredBikeValuations = bikeValuations.filter(val => 
-                    val.bike_id === bike.id && 
-                    new Date(val.valuation_date) >= startDate
-                  );
-
-                  filteredBikeValuations.forEach(val => {
+                  // Add all valuation points for this bike
+                  const bikeValuationsForThisBike = bikeValuations.filter(val => val.bike_id === bike.id);
+                  bikeValuationsForThisBike.forEach(val => {
                     dataPoints.push({
                       date: val.valuation_date,
                       timestamp: new Date(val.valuation_date).getTime(),
@@ -508,51 +511,60 @@ export const GarageValueWidget = () => {
 
                 console.log('Bike timelines:', bikeTimelines);
 
-                // Create unified timeline with all dates
-                const allTimestamps = new Set<number>();
+                // Create a timeline from start date to today with regular intervals
+                const timelinePoints = [];
+                const currentDate = new Date(startDate!);
+                const endDate = new Date(today);
+                
+                // Add all actual data points
+                const allActualTimestamps = new Set<number>();
                 bikeTimelines.forEach(timeline => {
                   timeline.dataPoints.forEach(point => {
-                    allTimestamps.add(point.timestamp);
+                    allActualTimestamps.add(point.timestamp);
                   });
                 });
 
-                // Convert to sorted array of unique dates
-                const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+                // Always include today if we have any valuations
+                if (bikeValuations.length > 0) {
+                  allActualTimestamps.add(today.getTime());
+                }
+
+                const sortedTimestamps = Array.from(allActualTimestamps).sort((a, b) => a - b);
                 
                 if (sortedTimestamps.length === 0) {
                   return (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center text-muted-foreground">
                         <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No data for selected period</p>
-                        <p className="text-xs">Try selecting a different time range</p>
+                        <p className="text-sm">No valuation data available</p>
+                        <p className="text-xs">Run a valuation to see value changes over time</p>
                       </div>
                     </div>
                   );
                 }
 
-                // Build chart data with all bikes for each timestamp
+                // Build chart data with proper value progression
                 const chartData = sortedTimestamps.map(timestamp => {
                   const chartPoint: any = {
                     date: new Date(timestamp).toLocaleDateString(),
                     timestamp
                   };
 
-                  // For each bike, find the value at this timestamp or carry forward the last known value
+                  // For each bike, find the current value at this timestamp
                   bikeTimelines.forEach(timeline => {
-                    let value = null;
+                    let currentValue = null;
                     
-                    // Find the last value for this bike at or before this timestamp
+                    // Find the most recent value for this bike at or before this timestamp
                     for (let i = timeline.dataPoints.length - 1; i >= 0; i--) {
                       if (timeline.dataPoints[i].timestamp <= timestamp) {
-                        value = timeline.dataPoints[i].value;
+                        currentValue = timeline.dataPoints[i].value;
                         break;
                       }
                     }
 
-                    // Only add the value if we have data for this bike at or before this timestamp
-                    if (value !== null) {
-                      chartPoint[timeline.bike.name] = value;
+                    // Only include bikes that have started (purchase date reached)
+                    if (currentValue !== null) {
+                      chartPoint[timeline.bike.name] = currentValue;
                     }
                   });
 
