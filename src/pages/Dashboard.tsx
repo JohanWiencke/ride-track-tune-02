@@ -85,12 +85,12 @@ const Dashboard = () => {
     }
   };
 
-  const handleBikeAdded = (newBike: BikeData) => {
-    setBikes([newBike, ...bikes]);
+  const handleBikeAdded = () => {
+    fetchBikes();
   };
 
-  const handleBikeUpdated = (updatedBike: BikeData) => {
-    setBikes(bikes.map(bike => bike.id === updatedBike.id ? updatedBike : bike));
+  const handleBikeUpdated = () => {
+    fetchBikes();
   };
 
   const handleBikeDeleted = (deletedBikeId: string) => {
@@ -109,6 +109,11 @@ const Dashboard = () => {
   const handleOpenBikeComponents = (bike: BikeData) => {
     setSelectedBike(bike);
     setIsBikeComponentsOpen(true);
+  };
+
+  const handleComponentsUpdated = () => {
+    // Refresh bike data when components are updated
+    fetchBikes();
   };
 
   return (
@@ -155,8 +160,8 @@ const Dashboard = () => {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <GarageValueWidget bikes={bikes} />
-              <GarageConditionWidget bikes={bikes} />
+              <GarageValueWidget />
+              <GarageConditionWidget />
               <InventoryWidget />
             </div>
             <Card>
@@ -284,6 +289,7 @@ const Dashboard = () => {
             open={isBikeComponentsOpen}
             onOpenChange={setIsBikeComponentsOpen}
             bike={selectedBike}
+            onComponentsUpdated={handleComponentsUpdated}
           />
         )}
       </div>
