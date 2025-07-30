@@ -104,40 +104,37 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
               Connect your Strava account to automatically sync your bike garage and cycling activities with distances.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 p-3 sm:p-6">
+          <CardContent className="space-y-4">
             <Button 
               onClick={handleConnect}
               disabled={isConnecting}
-              className="w-full text-sm sm:text-base"
-              size="default"
+              className="w-full"
             >
               {isConnecting ? "Connecting..." : "Connect to Strava"}
             </Button>
           </CardContent>
         </>
       ) : (
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.172"/>
               </svg>
-              <span className="font-medium text-sm sm:text-base">Strava</span>
-              <div className="flex items-center gap-1 text-xs sm:text-sm text-green-600">
+              <span className="font-medium">Strava</span>
+              <div className="flex items-center gap-1 text-sm text-green-600">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="hidden sm:inline">Connected</span>
-                <span className="sm:hidden">✓</span>
+                Connected
               </div>
             </div>
-            <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
+            <div className="flex gap-2">
               <Button 
                 onClick={handleSync}
                 disabled={isSyncing}
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto text-xs sm:text-sm"
               >
                 {isSyncing ? "Syncing..." : "Sync"}
               </Button>
@@ -146,7 +143,7 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
                 disabled={isDisconnecting}
                 variant="ghost"
                 size="sm"
-                className="w-full sm:w-auto text-xs sm:text-sm text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive"
               >
                 {isDisconnecting ? "..." : "Disconnect"}
               </Button>
