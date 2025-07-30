@@ -54,21 +54,13 @@ export const GarageValueWidget = () => {
     if (!user) return;
 
     try {
-      // Use raw SQL query since TypeScript types aren't updated yet
       const { data, error } = await supabase
-        .rpc('get_bike_valuations_with_bikes', { user_id_param: user.id });
+        .from('bike_valuations')
+        .select('*')
+        .order('valuation_date', { ascending: true });
 
       if (error) {
         console.error('Error fetching bike valuations:', error);
-        // Fallback: try direct query without joins for now
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('bike_valuations' as any)
-          .select('*')
-          .order('valuation_date', { ascending: true });
-        
-        if (!fallbackError) {
-          setBikeValuations(fallbackData || []);
-        }
       } else {
         setBikeValuations(data || []);
       }
@@ -96,7 +88,6 @@ export const GarageValueWidget = () => {
       setTotalEstimatedValue(estimatedTotal);
       setTotalOriginalValue(originalTotal);
       
-      // Check if user can valuate (rate limiting)
       await checkCanValuate();
     } catch (error) {
       console.error('Error fetching bikes:', error);
@@ -111,7 +102,7 @@ export const GarageValueWidget = () => {
 
     try {
       const { data, error } = await supabase
-        .from('valuation_history' as any)
+        .from('valuation_history')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
@@ -127,12 +118,11 @@ export const GarageValueWidget = () => {
     if (!user) return;
 
     try {
-      // Check if user has valuated in the last 3.5 days (twice per week = every 3.5 days)
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - 3.5);
 
       const { data: recentValuations, error } = await supabase
-        .from('valuation_history' as any)
+        .from('valuation_history')
         .select('created_at')
         .eq('user_id', user.id)
         .gte('created_at', cutoffDate.toISOString())
@@ -145,18 +135,15 @@ export const GarageValueWidget = () => {
         return;
       }
 
-      // If no recent valuations found, user can valuate
       if (!recentValuations || recentValuations.length === 0) {
         setCanValuate(true);
         return;
       }
 
-      // If there's a recent valuation within 3.5 days, they cannot valuate yet
       const lastValuation = new Date(recentValuations[0].created_at);
       const now = new Date();
       const hoursSinceLastValuation = (now.getTime() - lastValuation.getTime()) / (1000 * 60 * 60);
       
-      // Allow if it's been more than 84 hours (3.5 days)
       setCanValuate(hoursSinceLastValuation >= 84);
     } catch (error) {
       console.error('Error checking rate limit:', error);
@@ -169,7 +156,7 @@ export const GarageValueWidget = () => {
 
     try {
       const { error } = await supabase
-        .from('valuation_history' as any)
+        .from('valuation_history')
         .insert({
           user_id: user.id,
           total_estimated_value: estimatedValue,
@@ -200,9 +187,8 @@ export const GarageValueWidget = () => {
       if (error) throw error;
 
       if (data.success) {
-        // Save individual bike valuation to bike_valuations table
         const { error: valuationError } = await supabase
-          .from('bike_valuations' as any)
+          .from('bike_valuations')
           .insert({
             bike_id: bikeId,
             estimated_value: data.estimatedValue,
@@ -213,7 +199,6 @@ export const GarageValueWidget = () => {
         if (valuationError) {
           console.error('Error saving bike valuation:', valuationError);
         } else {
-          // Immediately refresh bike valuations to update the chart
           await fetchBikeValuations();
         }
         
@@ -232,11 +217,10 @@ export const GarageValueWidget = () => {
   const updateGarageValue = async () => {
     setLoading(true);
     try {
-      // For bikes with original price, create initial valuation records if they don't exist
       for (const bike of bikes) {
         if (bike.price && bike.purchase_date) {
           const { data: existingValuation } = await supabase
-            .from('bike_valuations' as any)
+            .from('bike_valuations')
             .select('id')
             .eq('bike_id', bike.id)
             .eq('valuation_source', 'purchase')
@@ -244,7 +228,7 @@ export const GarageValueWidget = () => {
 
           if (!existingValuation) {
             await supabase
-              .from('bike_valuations' as any)
+              .from('bike_valuations')
               .insert({
                 bike_id: bike.id,
                 estimated_value: bike.price,
@@ -286,18 +270,16 @@ export const GarageValueWidget = () => {
         totalEstimated += result.estimatedValue;
       }
       
-      // Small delay between requests to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     setIsValuating(false);
     toast.success(`${successCount} bikes valued successfully`);
     
-    // Refresh data and rate limit check
     await fetchBikes();
     await fetchBikeValuations();
     await fetchValuationHistory();
-    await checkCanValuate(); // Re-check rate limit after valuation
+    await checkCanValuate();
   };
 
   useEffect(() => {
@@ -431,7 +413,6 @@ export const GarageValueWidget = () => {
             </div>
             <div className="h-64">
               {(() => {
-                // Always show full timeline from first bike purchase to today
                 const bikesWithData = bikes.filter(bike => bike.price && bike.purchase_date);
                 
                 if (bikesWithData.length === 0) {
@@ -446,29 +427,23 @@ export const GarageValueWidget = () => {
                   );
                 }
 
-                console.log('Building chart with bikes:', bikesWithData);
-                console.log('Available valuations:', bikeValuations);
-
-                // Create bike data with unique colors
                 const colors = [
                   'hsl(var(--primary))',
                   'hsl(var(--destructive))', 
                   'hsl(var(--warning))',
                   'hsl(var(--success))',
-                  '#8B5CF6', // Purple
-                  '#F59E0B', // Amber
-                  '#10B981', // Emerald
-                  '#3B82F6', // Blue
-                  '#EF4444', // Red
-                  '#6366F1'  // Indigo
+                  '#8B5CF6',
+                  '#F59E0B',
+                  '#10B981',
+                  '#3B82F6',
+                  '#EF4444',
+                  '#6366F1'
                 ];
 
-                // Create timeline data for each bike
                 const bikeTimelines = bikesWithData.map((bike, index) => {
                   const bikeColor = colors[index % colors.length];
                   const dataPoints = [];
 
-                  // Always add purchase point (start of timeline)
                   const purchaseDate = new Date(bike.purchase_date!);
                   dataPoints.push({
                     date: bike.purchase_date!,
@@ -477,7 +452,6 @@ export const GarageValueWidget = () => {
                     type: 'purchase'
                   });
 
-                  // Add all valuation points for this bike
                   const bikeValuationsForThisBike = bikeValuations.filter(val => val.bike_id === bike.id);
                   bikeValuationsForThisBike.forEach(val => {
                     dataPoints.push({
@@ -488,7 +462,6 @@ export const GarageValueWidget = () => {
                     });
                   });
 
-                  // Sort points by timestamp
                   dataPoints.sort((a, b) => a.timestamp - b.timestamp);
 
                   return {
@@ -498,7 +471,6 @@ export const GarageValueWidget = () => {
                   };
                 });
 
-                // Get all unique timestamps for the chart, always include today
                 const allTimestamps = new Set<number>();
                 bikeTimelines.forEach(timeline => {
                   timeline.dataPoints.forEach(point => {
@@ -506,9 +478,8 @@ export const GarageValueWidget = () => {
                   });
                 });
                 
-                // Always add today's timestamp to extend chart to current date
                 const today = new Date();
-                today.setHours(23, 59, 59, 999); // End of today
+                today.setHours(23, 59, 59, 999);
                 allTimestamps.add(today.getTime());
 
                 const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
@@ -525,18 +496,15 @@ export const GarageValueWidget = () => {
                   );
                 }
 
-                // Build chart data - each timestamp becomes a data point
                 const chartData = sortedTimestamps.map(timestamp => {
                   const chartPoint: any = {
                     date: new Date(timestamp).toLocaleDateString(),
                     timestamp
                   };
 
-                  // For each bike, find current value at this timestamp
                   bikeTimelines.forEach(timeline => {
                     let currentValue = null;
                     
-                    // Find most recent value for this bike at or before this timestamp
                     for (let i = timeline.dataPoints.length - 1; i >= 0; i--) {
                       if (timeline.dataPoints[i].timestamp <= timestamp) {
                         currentValue = timeline.dataPoints[i].value;
@@ -544,7 +512,6 @@ export const GarageValueWidget = () => {
                       }
                     }
 
-                    // Only include bikes that have started (purchase date reached)
                     if (currentValue !== null) {
                       chartPoint[timeline.bike.name] = currentValue;
                     }
@@ -552,8 +519,6 @@ export const GarageValueWidget = () => {
 
                   return chartPoint;
                 });
-
-                console.log('Chart data:', chartData);
 
                 return (
                   <ResponsiveContainer width="100%" height="100%">

@@ -263,6 +263,60 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      receipts: {
+        Row: {
+          analysis_status: string
+          created_at: string
+          id: string
+          image_url: string
+          original_filename: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_status?: string
+          created_at?: string
+          id?: string
+          image_url: string
+          original_filename: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_status?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          original_filename?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       valuation_history: {
         Row: {
           created_at: string
