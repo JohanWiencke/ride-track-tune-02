@@ -1,5 +1,6 @@
 import React from 'react';
-import { User, Bike, Package, Euro, Calendar } from 'lucide-react';
+import { User, Bike, Package, Euro, Calendar, Activity, TrendingUp } from 'lucide-react';
+import { ProfilePictureUpload } from '@/components/ProfilePictureUpload';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,10 @@ interface UserProfilePopupProps {
   garageValue: number;
   partInventoryCount: number;
   partInventoryValue: number;
+  stravaStats?: {
+    totalDistance: number;
+    totalActivities: number;
+  };
 }
 
 export const UserProfilePopup = ({
@@ -28,6 +33,7 @@ export const UserProfilePopup = ({
   garageValue,
   partInventoryCount,
   partInventoryValue,
+  stravaStats,
 }: UserProfilePopupProps) => {
   const { t } = useTranslation();
   const username = userEmail?.split('@')[0] || 'User';
@@ -56,14 +62,12 @@ export const UserProfilePopup = ({
           </DialogHeader>
           
           <div className="mt-6 space-y-6">
-            {/* User Info Section */}
-            <div className="relative group">
+            {/* Profile Picture Section */}
+            <div className="relative group text-center">
               <div className="absolute inset-0 bg-gradient-to-br from-glass-primary/20 to-glass-secondary/20 rounded-lg blur-sm group-hover:blur-none transition-all duration-300"></div>
               <div className="relative p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-glass-primary/30 to-glass-secondary/30 rounded-lg">
-                    <User className="h-5 w-5 text-white" />
-                  </div>
+                <div className="flex flex-col items-center gap-3">
+                  <ProfilePictureUpload />
                   <div>
                     <p className="font-semibold text-white">{fullName || username}</p>
                     <p className="text-sm text-white/70">{userEmail}</p>
@@ -74,6 +78,38 @@ export const UserProfilePopup = ({
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Strava Stats Section */}
+              {stravaStats && (
+                <>
+                  {/* Total Distance */}
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-400/30 to-red-500/30 rounded-lg blur-sm group-hover:blur-none transition-all duration-300"></div>
+                    <div className="relative p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg text-center">
+                      <div className="p-2 bg-gradient-to-br from-orange-400/30 to-red-500/30 rounded-lg mx-auto w-fit mb-2">
+                        <TrendingUp className="h-5 w-5 text-white" />
+                      </div>
+                      <p className="text-2xl font-bold bg-gradient-to-r from-white via-orange-400 to-red-400 bg-clip-text text-transparent">
+                        {(stravaStats.totalDistance / 1000).toFixed(0)}km
+                      </p>
+                      <p className="text-xs text-white/70">{t('totalDistance')}</p>
+                    </div>
+                  </div>
+
+                  {/* Total Activities */}
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 to-pink-500/30 rounded-lg blur-sm group-hover:blur-none transition-all duration-300"></div>
+                    <div className="relative p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg text-center">
+                      <div className="p-2 bg-gradient-to-br from-purple-400/30 to-pink-500/30 rounded-lg mx-auto w-fit mb-2">
+                        <Activity className="h-5 w-5 text-white" />
+                      </div>
+                      <p className="text-2xl font-bold bg-gradient-to-r from-white via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        {stravaStats.totalActivities}
+                      </p>
+                      <p className="text-xs text-white/70">{t('activities')}</p>
+                    </div>
+                  </div>
+                </>
+              )}
               {/* Bikes Count */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/30 to-glass-purple/30 rounded-lg blur-sm group-hover:blur-none transition-all duration-300"></div>

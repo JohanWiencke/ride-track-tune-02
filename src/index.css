@@ -159,28 +159,34 @@ All colors MUST be HSL.
     box-shadow: 0 8px 25px hsl(var(--primary) / 0.3);
   }
 
-  /* Liquid Glass Dropdown */
+  /* Enhanced Liquid Glass Dropdown */
   .glass-dropdown {
     background: linear-gradient(135deg, 
-      rgba(255, 255, 255, 0.1) 0%, 
-      rgba(255, 255, 255, 0.05) 100%);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+      rgba(255, 255, 255, 0.12) 0%, 
+      rgba(255, 255, 255, 0.08) 100%);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    animation: glass-dropdown-enter 0.3s ease-out;
+      0 12px 40px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    animation: glass-dropdown-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   @keyframes glass-dropdown-enter {
     from {
       opacity: 0;
-      transform: translateY(-10px) scale(0.95);
+      transform: translateY(-20px) scale(0.9) rotateX(-10deg);
+      filter: blur(10px);
     }
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0) scale(1) rotateX(0deg);
+      filter: blur(0px);
     }
+  }
+
+  .animate-smooth-dropdown {
+    animation: glass-dropdown-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .glass-dropdown-trigger {
@@ -207,9 +213,14 @@ All colors MUST be HSL.
 
   .glass-dropdown-item:hover {
     background: linear-gradient(135deg, 
-      rgba(255, 255, 255, 0.15) 0%, 
-      rgba(255, 255, 255, 0.08) 100%);
-    transform: translateX(2px);
+      rgba(255, 255, 255, 0.18) 0%, 
+      rgba(255, 255, 255, 0.12) 100%);
+    transform: translateX(4px) scale(1.02);
+    box-shadow: 0 4px 20px rgba(139, 69, 219, 0.2);
+  }
+
+  .animate-smooth {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
