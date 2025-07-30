@@ -269,8 +269,6 @@ export type Database = {
           created_at: string
           id: string
           strava_access_token: string | null
-          strava_athlete_id: string | null
-          strava_refresh_token: string | null
           updated_at: string
           user_id: string
         }
@@ -279,8 +277,6 @@ export type Database = {
           created_at?: string
           id?: string
           strava_access_token?: string | null
-          strava_athlete_id?: string | null
-          strava_refresh_token?: string | null
           updated_at?: string
           user_id: string
         }
@@ -289,8 +285,6 @@ export type Database = {
           created_at?: string
           id?: string
           strava_access_token?: string | null
-          strava_athlete_id?: string | null
-          strava_refresh_token?: string | null
           updated_at?: string
           user_id?: string
         }

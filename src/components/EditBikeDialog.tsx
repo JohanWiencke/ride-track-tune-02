@@ -52,10 +52,9 @@ interface EditBikeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onBikeUpdated: () => void;
-  onBikeDeleted: (deletedBikeId: string) => void;
 }
 
-export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated, onBikeDeleted }: EditBikeDialogProps) {
+export function EditBikeDialog({ bike, open, onOpenChange, onBikeUpdated }: EditBikeDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>('');
   const { toast } = useToast();

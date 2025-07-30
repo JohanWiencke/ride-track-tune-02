@@ -20,95 +20,86 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
   const { toast } = useToast();
   const { user, loading } = useAuth();
 
-  console.log('StravaConnect render - user:', !!user, 'user ID:', user?.id, 'loading:', loading);
+  console.log('StravaConnect render - user:', !!user, 'loading:', loading);
 
   // Check connection status when component mounts and when user changes
   useEffect(() => {
     if (!loading && user) {
-      console.log('User authenticated, checking Strava connection for user ID:', user.id);
+      console.log('Checking Strava connection for authenticated user');
       checkStravaConnection();
     } else if (!loading && !user) {
-      console.log('No user found after loading completed');
+      console.log('No user found, setting disconnected status');
       setConnectionStatus('disconnected');
       onConnectionChange(false);
     }
   }, [user, loading]);
 
   const checkStravaConnection = async () => {
-    console.log('Checking Strava connection for user:', user?.id);
+    console.log('Checking Strava connection...', { user: !!user, userId: user?.id });
     
     if (!user) {
-      console.log('No user in checkStravaConnection');
+      console.log('No user found, setting disconnected');
       setConnectionStatus('disconnected');
       onConnectionChange(false);
       return;
     }
 
     try {
-      console.log('Fetching profile for user ID:', user.id);
+      console.log('Checking Strava connection for user:', user.id);
       
-      // First, ensure user has a profile record
-      const { data: existingProfile, error: profileError } = await supabase
+      // Check if user has a profile record with Strava token
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('strava_access_token')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
-      console.log('Profile query result:', { existingProfile, profileError });
+      console.log('Profile check result:', { profile, profileError });
 
-      let profile = existingProfile;
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          // No profile found, create one
+          console.log('No profile found, creating one...');
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              strava_access_token: null,
+              strava_refresh_token: null,
+              strava_athlete_id: null
+            });
 
-      // If no profile exists, create one
-      if (!profile && !profileError) {
-        console.log('Creating new profile for user:', user.id);
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: user.id,
-            strava_access_token: null,
-            strava_refresh_token: null,
-            strava_athlete_id: null
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating profile:', createError);
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+          }
+          
+          setConnectionStatus('disconnected');
+          onConnectionChange(false);
+          return;
+        } else {
+          console.error('Error checking profile:', profileError);
           setConnectionStatus('disconnected');
           onConnectionChange(false);
           return;
         }
-
-        profile = newProfile;
-        console.log('Created new profile:', profile);
-      }
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
-        setConnectionStatus('disconnected');
-        onConnectionChange(false);
-        return;
       }
 
       // Check if user has Strava token
-      const hasStravaToken = !!(profile?.strava_access_token);
-      console.log('Strava token exists:', hasStravaToken, 'Profile:', profile);
+      const hasStravaToken = !!profile?.strava_access_token;
+      console.log('Strava token exists:', hasStravaToken);
       
       setConnectionStatus(hasStravaToken ? 'connected' : 'disconnected');
       onConnectionChange(hasStravaToken);
       
     } catch (error) {
-      console.error('Error in checkStravaConnection:', error);
+      console.error('Error checking Strava connection:', error);
       setConnectionStatus('disconnected');
       onConnectionChange(false);
     }
   };
 
   const handleConnect = async () => {
-    console.log('handleConnect called - user:', !!user, 'user ID:', user?.id);
-    
     if (!user) {
-      console.error('No user found when trying to connect');
       toast({
         title: "Authentication Required",
         description: "Please sign in to connect Strava.",
@@ -119,7 +110,7 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
 
     setIsConnecting(true);
     try {
-      console.log('Starting Strava connection for user:', user.id);
+      console.log('Starting Strava connection...');
       
       // Get the Strava authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('strava-auth', {
