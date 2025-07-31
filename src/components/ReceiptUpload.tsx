@@ -33,6 +33,16 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
       return;
     }
 
+    // Check file size (limit to 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 10MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUploading(true);
     try {
       // Upload to Supabase Storage
@@ -43,7 +53,10 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
         .from('receipt-images')
         .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
 
       // Get public URL
       const { data } = supabase.storage
@@ -62,7 +75,10 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
         .select()
         .single();
 
-      if (receiptError) throw receiptError;
+      if (receiptError) {
+        console.error('Receipt creation error:', receiptError);
+        throw new Error(`Failed to create receipt record: ${receiptError.message}`);
+      }
 
       toast({
         title: "Receipt uploaded",
@@ -76,38 +92,69 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
         try {
           const base64 = (reader.result as string).split(',')[1];
           
-          const { error: analysisError } = await supabase.functions.invoke('analyze-receipt', {
+          console.log('Calling analyze-receipt function...');
+          const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-receipt', {
             body: { 
               receiptId: receiptData.id, 
               imageBase64: base64 
             }
           });
 
-          if (analysisError) throw analysisError;
+          if (analysisError) {
+            console.error('Analysis error:', analysisError);
+            throw new Error(`Analysis failed: ${analysisError.message}`);
+          }
 
-          toast({
-            title: "Analysis complete",
-            description: "Receipt has been analyzed and parts added to inventory.",
-          });
+          console.log('Analysis response:', analysisData);
+
+          if (analysisData?.extractedParts && analysisData.extractedParts.length > 0) {
+            toast({
+              title: "Analysis complete",
+              description: `Found ${analysisData.extractedParts.length} bike parts. Added to inventory.`,
+            });
+          } else {
+            toast({
+              title: "Analysis complete",
+              description: "No bike parts were found in this receipt.",
+            });
+          }
 
           onSuccess();
           onOpenChange(false);
         } catch (error: any) {
+          console.error('Analysis error:', error);
           toast({
             title: "Analysis failed",
-            description: error.message,
+            description: error.message || "An unknown error occurred during analysis.",
             variant: "destructive",
           });
+          
+          // Update receipt status to failed
+          await supabase
+            .from('receipts')
+            .update({ analysis_status: 'failed', processing_status: 'failed' })
+            .eq('id', receiptData.id);
         } finally {
           setAnalyzing(false);
         }
       };
+      
+      reader.onerror = () => {
+        toast({
+          title: "File reading failed",
+          description: "Could not read the uploaded file.",
+          variant: "destructive",
+        });
+        setAnalyzing(false);
+      };
+      
       reader.readAsDataURL(file);
 
     } catch (error: any) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error.message || "An unknown error occurred during upload.",
         variant: "destructive",
       });
     } finally {

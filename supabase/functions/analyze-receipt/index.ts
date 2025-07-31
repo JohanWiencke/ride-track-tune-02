@@ -86,6 +86,12 @@ serve(async (req) => {
   try {
     const { receiptId, imageBase64 } = await req.json();
 
+    console.log('Starting receipt analysis for receiptId:', receiptId);
+
+    if (!googleApiKey) {
+      throw new Error('Google Cloud Vision API key not configured');
+    }
+
     // Call Google Cloud Vision API
     const visionResponse = await fetch(
       `https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`,
@@ -107,6 +113,12 @@ serve(async (req) => {
       }
     );
 
+    if (!visionResponse.ok) {
+      const errorText = await visionResponse.text();
+      console.error('Vision API error:', errorText);
+      throw new Error(`Vision API error: ${visionResponse.status} - ${errorText}`);
+    }
+
     const visionData = await visionResponse.json();
     
     if (!visionData.responses || !visionData.responses[0]) {
@@ -114,10 +126,18 @@ serve(async (req) => {
     }
 
     const extractedText = visionData.responses[0].textAnnotations?.[0]?.description || '';
+    console.log('Extracted text length:', extractedText.length);
     
+    if (!extractedText) {
+      throw new Error('No text could be extracted from the image');
+    }
+
     // Detect language and extract bike parts
     const detectedLanguage = detectLanguage(extractedText);
     const extractedParts = extractBikeParts(extractedText, detectedLanguage);
+
+    console.log('Detected language:', detectedLanguage);
+    console.log('Extracted parts:', extractedParts.length);
 
     // Update receipt with analysis results
     const { error: updateError } = await supabase
@@ -131,13 +151,58 @@ serve(async (req) => {
       })
       .eq('id', receiptId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      throw updateError;
+    }
+
+    // Add extracted parts to inventory if any found
+    if (extractedParts.length > 0) {
+      // Get receipt to find user_id
+      const { data: receipt, error: receiptError } = await supabase
+        .from('receipts')
+        .select('user_id')
+        .eq('id', receiptId)
+        .single();
+
+      if (receiptError) {
+        console.error('Error fetching receipt:', receiptError);
+        throw receiptError;
+      }
+
+      // Get default component type for unknown parts
+      const { data: defaultType } = await supabase
+        .from('component_types')
+        .select('id')
+        .eq('name', 'Other')
+        .single();
+
+      if (defaultType && extractedParts.length > 0) {
+        // Add parts to inventory
+        const inventoryItems = extractedParts.map(part => ({
+          user_id: receipt.user_id,
+          component_type_id: defaultType.id,
+          quantity: part.quantity,
+          purchase_price: part.price,
+          notes: `Auto-added from receipt: ${part.name}`
+        }));
+
+        const { error: inventoryError } = await supabase
+          .from('parts_inventory')
+          .insert(inventoryItems);
+
+        if (inventoryError) {
+          console.error('Error adding to inventory:', inventoryError);
+          // Don't throw here, analysis was successful even if inventory update failed
+        }
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
       extractedParts,
       detectedLanguage,
-      extractedText 
+      extractedText: extractedText.substring(0, 500) + '...' // Truncate for response
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
