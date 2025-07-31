@@ -27,7 +27,7 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Invalid file type",
-        description: "Please upload an image file.",
+        description: "Please upload an image file (PNG, JPG, JPEG).",
         variant: "destructive",
       });
       return;
@@ -81,18 +81,21 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
       }
 
       toast({
-        title: "Receipt uploaded",
-        description: "Starting analysis...",
+        title: "Receipt uploaded successfully",
+        description: "Starting AI analysis...",
       });
 
       // Convert file to base64 for analysis
       const reader = new FileReader();
       reader.onloadend = async () => {
         setAnalyzing(true);
+        setUploading(false);
+        
         try {
           const base64 = (reader.result as string).split(',')[1];
           
-          console.log('Calling analyze-receipt function...');
+          console.log('Calling analyze-receipt function with receiptId:', receiptData.id);
+          
           const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-receipt', {
             body: { 
               receiptId: receiptData.id, 
@@ -100,65 +103,77 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
             }
           });
 
+          console.log('Analysis response:', { analysisData, analysisError });
+
           if (analysisError) {
-            console.error('Analysis error:', analysisError);
-            throw new Error(`Analysis failed: ${analysisError.message}`);
+            console.error('Function invocation error:', analysisError);
+            throw new Error(analysisError.message || 'Failed to analyze receipt');
           }
 
-          console.log('Analysis response:', analysisData);
+          if (analysisData?.error) {
+            console.error('Analysis function returned error:', analysisData.error);
+            throw new Error(analysisData.error);
+          }
 
           if (analysisData?.extractedParts && analysisData.extractedParts.length > 0) {
             toast({
-              title: "Analysis complete",
-              description: `Found ${analysisData.extractedParts.length} bike parts. Added to inventory.`,
+              title: "Analysis complete!",
+              description: `Found ${analysisData.extractedParts.length} bike parts and added them to your inventory.`,
             });
           } else {
             toast({
               title: "Analysis complete",
-              description: "No bike parts were found in this receipt.",
+              description: "Receipt processed but no bike parts were detected. You can add parts manually if needed.",
             });
           }
 
           onSuccess();
           onOpenChange(false);
+          
         } catch (error: any) {
           console.error('Analysis error:', error);
-          toast({
-            title: "Analysis failed",
-            description: error.message || "An unknown error occurred during analysis.",
-            variant: "destructive",
-          });
           
           // Update receipt status to failed
           await supabase
             .from('receipts')
-            .update({ analysis_status: 'failed', processing_status: 'failed' })
+            .update({ 
+              analysis_status: 'failed', 
+              processing_status: 'failed' 
+            })
             .eq('id', receiptData.id);
+          
+          toast({
+            title: "Analysis failed",
+            description: error.message || "Unable to analyze the receipt. Please try again or add parts manually.",
+            variant: "destructive",
+          });
         } finally {
           setAnalyzing(false);
         }
       };
       
-      reader.onerror = () => {
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
         toast({
           title: "File reading failed",
-          description: "Could not read the uploaded file.",
+          description: "Could not read the uploaded file. Please try again.",
           variant: "destructive",
         });
         setAnalyzing(false);
+        setUploading(false);
       };
       
       reader.readAsDataURL(file);
 
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('Upload process error:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "An unknown error occurred during upload.",
+        description: error.message || "Failed to upload receipt. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setUploading(false);
+      setAnalyzing(false);
     }
   };
 
@@ -171,8 +186,7 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
         
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground">
-            Upload your bike parts receipt and our AI will automatically analyze it and add the parts to your inventory. 
-            Supports German, French, English, and Italian receipts.
+            Upload your bike parts receipt and our AI will automatically analyze it and add the parts to your inventory.
           </div>
           
           <div 
@@ -183,7 +197,7 @@ const ReceiptUpload = ({ open, onOpenChange, onSuccess }: ReceiptUploadProps) =>
               <div className="space-y-2">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                 <p className="text-sm text-muted-foreground">
-                  {uploading ? "Uploading..." : "Analyzing receipt..."}
+                  {uploading ? "Uploading receipt..." : "Analyzing with AI..."}
                 </p>
               </div>
             ) : (

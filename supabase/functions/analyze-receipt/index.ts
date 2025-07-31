@@ -7,90 +7,71 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const googleApiKey = Deno.env.get('GOOGLE_CLOUD_VISION_API_KEY')!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Bike parts keywords in multiple languages
-const bikePartsKeywords = {
-  en: ['chain', 'cassette', 'derailleur', 'brake', 'wheel', 'tire', 'handlebar', 'stem', 'saddle', 'pedal', 'crankset', 'chainring', 'shifter', 'cable', 'housing', 'tube', 'rim', 'spoke', 'hub', 'bearing', 'bottom bracket', 'headset', 'fork', 'frame', 'groupset', 'disc brake', 'rim brake', 'brake pad', 'rotor'],
-  de: ['kette', 'kassette', 'schaltwerk', 'bremse', 'rad', 'reifen', 'lenker', 'vorbau', 'sattel', 'pedal', 'kurbel', 'kettenblatt', 'schalthebel', 'kabel', 'hülle', 'schlauch', 'felge', 'speiche', 'nabe', 'lager', 'tretlager', 'steuersatz', 'gabel', 'rahmen', 'schaltgruppe', 'scheibenbremse', 'felgenbremse', 'bremsbelag', 'bremsscheibe'],
-  fr: ['chaîne', 'cassette', 'dérailleur', 'frein', 'roue', 'pneu', 'guidon', 'potence', 'selle', 'pédale', 'pédalier', 'plateau', 'manette', 'câble', 'gaine', 'chambre', 'jante', 'rayon', 'moyeu', 'roulement', 'boîtier', 'jeu de direction', 'fourche', 'cadre', 'groupe', 'frein à disque', 'frein sur jante', 'plaquette', 'disque'],
-  it: ['catena', 'cassetta', 'deragliatore', 'freno', 'ruota', 'pneumatico', 'manubrio', 'attacco', 'sella', 'pedale', 'guarnitura', 'corona', 'leva', 'cavo', 'guaina', 'camera', 'cerchione', 'raggio', 'mozzo', 'cuscinetto', 'movimento centrale', 'serie sterzo', 'forcella', 'telaio', 'gruppo', 'freno a disco', 'freno a pattino', 'pasticca', 'disco']
-};
-
-function detectLanguage(text: string): string {
-  const languages = ['de', 'fr', 'it', 'en'];
-  const scores: { [key: string]: number } = {};
-  
-  for (const lang of languages) {
-    scores[lang] = 0;
-    const keywords = bikePartsKeywords[lang as keyof typeof bikePartsKeywords];
-    for (const keyword of keywords) {
-      if (text.toLowerCase().includes(keyword.toLowerCase())) {
-        scores[lang]++;
-      }
-    }
-  }
-  
-  const detectedLang = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-  return scores[detectedLang] > 0 ? detectedLang : 'en';
-}
-
-function extractBikeParts(text: string, language: string) {
-  const lines = text.split('\n');
-  const parts: Array<{name: string, price: number, quantity: number}> = [];
-  const keywords = bikePartsKeywords[language as keyof typeof bikePartsKeywords];
-  
-  for (const line of lines) {
-    const lowerLine = line.toLowerCase();
-    
-    // Check if line contains bike part keywords
-    const containsBikePart = keywords.some(keyword => 
-      lowerLine.includes(keyword.toLowerCase())
-    );
-    
-    if (containsBikePart) {
-      // Extract price using regex
-      const priceMatch = line.match(/(\d+[.,]\d{2}|\d+)/g);
-      const quantityMatch = line.match(/(\d+)\s*x\s*|qty\s*:?\s*(\d+)|quantity\s*:?\s*(\d+)/i);
-      
-      if (priceMatch) {
-        const price = parseFloat(priceMatch[priceMatch.length - 1].replace(',', '.'));
-        const quantity = quantityMatch ? parseInt(quantityMatch[1] || quantityMatch[2] || quantityMatch[3]) : 1;
-        
-        // Clean up the part name
-        let partName = line.replace(/(\d+[.,]\d{2}|\d+)/g, '').replace(/[€$£]/g, '').trim();
-        partName = partName.replace(/^\d+\s*x?\s*/i, '').trim();
-        
-        if (partName && price > 0) {
-          parts.push({
-            name: partName,
-            price: price,
-            quantity: quantity
-          });
-        }
-      }
-    }
-  }
-  
-  return parts;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { receiptId, imageBase64 } = await req.json();
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const googleApiKey = Deno.env.get('GOOGLE_CLOUD_VISION_API_KEY');
 
-    console.log('Starting receipt analysis for receiptId:', receiptId);
+    console.log('Environment check:', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey,
+      hasGoogleKey: !!googleApiKey
+    });
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(JSON.stringify({ 
+        error: 'Server configuration error: Missing Supabase credentials' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (!googleApiKey) {
-      throw new Error('Google Cloud Vision API key not configured');
+      console.error('Missing Google Cloud Vision API key');
+      return new Response(JSON.stringify({ 
+        error: 'Server configuration error: Missing Google Cloud Vision API key' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { receiptId, imageBase64 } = requestBody;
+
+    if (!receiptId || !imageBase64) {
+      console.error('Missing required parameters:', { hasReceiptId: !!receiptId, hasImageBase64: !!imageBase64 });
+      return new Response(JSON.stringify({ 
+        error: 'Missing receiptId or imageBase64' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('Starting receipt analysis for receiptId:', receiptId);
 
     // Call Google Cloud Vision API
     const visionResponse = await fetch(
@@ -116,48 +97,91 @@ serve(async (req) => {
     if (!visionResponse.ok) {
       const errorText = await visionResponse.text();
       console.error('Vision API error:', errorText);
-      throw new Error(`Vision API error: ${visionResponse.status} - ${errorText}`);
+      return new Response(JSON.stringify({ 
+        error: `Vision API error: ${visionResponse.status} - ${errorText}` 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const visionData = await visionResponse.json();
     
     if (!visionData.responses || !visionData.responses[0]) {
-      throw new Error('No text detected in image');
+      console.error('No response from Vision API');
+      return new Response(JSON.stringify({ 
+        error: 'No text detected in image' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const extractedText = visionData.responses[0].textAnnotations?.[0]?.description || '';
     console.log('Extracted text length:', extractedText.length);
     
     if (!extractedText) {
-      throw new Error('No text could be extracted from the image');
+      console.log('No text could be extracted from the image');
+      return new Response(JSON.stringify({ 
+        error: 'No text could be extracted from the image' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // Detect language and extract bike parts
-    const detectedLanguage = detectLanguage(extractedText);
-    const extractedParts = extractBikeParts(extractedText, detectedLanguage);
+    // Simple bike parts detection (basic keywords)
+    const bikeKeywords = ['chain', 'tire', 'brake', 'wheel', 'pedal', 'gear', 'spoke', 'handlebar', 'saddle'];
+    const foundParts = [];
+    
+    const lines = extractedText.split('\n');
+    for (const line of lines) {
+      const lowerLine = line.toLowerCase();
+      const hasBikePart = bikeKeywords.some(keyword => lowerLine.includes(keyword));
+      
+      if (hasBikePart) {
+        // Extract price from line
+        const priceMatch = line.match(/(\d+[.,]\d{2}|\d+)/g);
+        if (priceMatch) {
+          const price = parseFloat(priceMatch[priceMatch.length - 1].replace(',', '.'));
+          const partName = line.replace(/(\d+[.,]\d{2}|\d+)/g, '').replace(/[€$£]/g, '').trim();
+          
+          if (partName && price > 0) {
+            foundParts.push({
+              name: partName,
+              price: price,
+              quantity: 1
+            });
+          }
+        }
+      }
+    }
 
-    console.log('Detected language:', detectedLanguage);
-    console.log('Extracted parts:', extractedParts.length);
+    console.log('Found parts:', foundParts);
 
     // Update receipt with analysis results
     const { error: updateError } = await supabase
       .from('receipts')
       .update({
         analysis_result: { text: extractedText },
-        extracted_items: extractedParts,
+        extracted_items: foundParts,
         processing_status: 'completed',
-        language_detected: detectedLanguage,
         analysis_status: 'completed'
       })
       .eq('id', receiptId);
 
     if (updateError) {
       console.error('Database update error:', updateError);
-      throw updateError;
+      return new Response(JSON.stringify({ 
+        error: `Database update failed: ${updateError.message}` 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // Add extracted parts to inventory if any found
-    if (extractedParts.length > 0) {
+    // Add found parts to inventory if any
+    if (foundParts.length > 0) {
       // Get receipt to find user_id
       const { data: receipt, error: receiptError } = await supabase
         .from('receipts')
@@ -167,49 +191,49 @@ serve(async (req) => {
 
       if (receiptError) {
         console.error('Error fetching receipt:', receiptError);
-        throw receiptError;
-      }
+        // Don't fail here, analysis was successful
+      } else {
+        // Get default component type
+        const { data: defaultType } = await supabase
+          .from('component_types')
+          .select('id')
+          .eq('name', 'Other')
+          .single();
 
-      // Get default component type for unknown parts
-      const { data: defaultType } = await supabase
-        .from('component_types')
-        .select('id')
-        .eq('name', 'Other')
-        .single();
+        if (defaultType) {
+          const inventoryItems = foundParts.map(part => ({
+            user_id: receipt.user_id,
+            component_type_id: defaultType.id,
+            quantity: part.quantity,
+            purchase_price: part.price,
+            notes: `Auto-added from receipt: ${part.name}`
+          }));
 
-      if (defaultType && extractedParts.length > 0) {
-        // Add parts to inventory
-        const inventoryItems = extractedParts.map(part => ({
-          user_id: receipt.user_id,
-          component_type_id: defaultType.id,
-          quantity: part.quantity,
-          purchase_price: part.price,
-          notes: `Auto-added from receipt: ${part.name}`
-        }));
+          const { error: inventoryError } = await supabase
+            .from('parts_inventory')
+            .insert(inventoryItems);
 
-        const { error: inventoryError } = await supabase
-          .from('parts_inventory')
-          .insert(inventoryItems);
-
-        if (inventoryError) {
-          console.error('Error adding to inventory:', inventoryError);
-          // Don't throw here, analysis was successful even if inventory update failed
+          if (inventoryError) {
+            console.error('Error adding to inventory:', inventoryError);
+            // Don't fail here, analysis was successful
+          }
         }
       }
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      extractedParts,
-      detectedLanguage,
-      extractedText: extractedText.substring(0, 500) + '...' // Truncate for response
+      extractedParts: foundParts,
+      extractedText: extractedText.substring(0, 500) + (extractedText.length > 500 ? '...' : '')
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Receipt analysis error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: `Unexpected error: ${error.message}` 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
