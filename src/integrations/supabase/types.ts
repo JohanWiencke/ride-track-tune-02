@@ -14,15 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          email: string
+          id: string
+          processed: boolean
+          processed_at: string | null
+          requested_at: string
+          user_id: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          processed?: boolean
+          processed_at?: string | null
+          requested_at?: string
+          user_id: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          processed?: boolean
+          processed_at?: string | null
+          requested_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bike_components: {
         Row: {
           bike_id: string
           component_type_id: string
           created_at: string
-          current_distance: number | null
+          current_distance: number
           id: string
-          install_distance: number | null
-          is_active: boolean | null
+          install_distance: number
+          is_active: boolean
           replacement_distance: number
           updated_at: string
         }
@@ -30,10 +57,10 @@ export type Database = {
           bike_id: string
           component_type_id: string
           created_at?: string
-          current_distance?: number | null
+          current_distance?: number
           id?: string
-          install_distance?: number | null
-          is_active?: boolean | null
+          install_distance?: number
+          is_active?: boolean
           replacement_distance: number
           updated_at?: string
         }
@@ -41,10 +68,10 @@ export type Database = {
           bike_id?: string
           component_type_id?: string
           created_at?: string
-          current_distance?: number | null
+          current_distance?: number
           id?: string
-          install_distance?: number | null
-          is_active?: boolean | null
+          install_distance?: number
+          is_active?: boolean
           replacement_distance?: number
           updated_at?: string
         }
@@ -72,7 +99,7 @@ export type Database = {
           estimated_value: number
           id: string
           valuation_date: string
-          valuation_source: string | null
+          valuation_source: string
         }
         Insert: {
           bike_id: string
@@ -80,7 +107,7 @@ export type Database = {
           estimated_value: number
           id?: string
           valuation_date?: string
-          valuation_source?: string | null
+          valuation_source?: string
         }
         Update: {
           bike_id?: string
@@ -88,11 +115,11 @@ export type Database = {
           estimated_value?: number
           id?: string
           valuation_date?: string
-          valuation_source?: string | null
+          valuation_source?: string
         }
         Relationships: [
           {
-            foreignKeyName: "fk_bike_valuations_bike_id"
+            foreignKeyName: "bike_valuations_bike_id_fkey"
             columns: ["bike_id"]
             isOneToOne: false
             referencedRelation: "bikes"
@@ -102,7 +129,7 @@ export type Database = {
       }
       bikes: {
         Row: {
-          bike_type: string | null
+          bike_type: string
           brand: string | null
           component_details: string | null
           created_at: string
@@ -114,7 +141,7 @@ export type Database = {
           name: string
           price: number | null
           purchase_date: string | null
-          total_distance: number | null
+          total_distance: number
           updated_at: string
           user_id: string
           valuation_source: string | null
@@ -122,7 +149,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
-          bike_type?: string | null
+          bike_type?: string
           brand?: string | null
           component_details?: string | null
           created_at?: string
@@ -134,7 +161,7 @@ export type Database = {
           name: string
           price?: number | null
           purchase_date?: string | null
-          total_distance?: number | null
+          total_distance?: number
           updated_at?: string
           user_id: string
           valuation_source?: string | null
@@ -142,7 +169,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
-          bike_type?: string | null
+          bike_type?: string
           brand?: string | null
           component_details?: string | null
           created_at?: string
@@ -154,7 +181,7 @@ export type Database = {
           name?: string
           price?: number | null
           purchase_date?: string | null
-          total_distance?: number | null
+          total_distance?: number
           updated_at?: string
           user_id?: string
           valuation_source?: string | null
@@ -191,7 +218,6 @@ export type Database = {
         Row: {
           action_type: string
           bike_component_id: string
-          cost: number | null
           created_at: string
           distance_at_action: number
           id: string
@@ -200,7 +226,6 @@ export type Database = {
         Insert: {
           action_type: string
           bike_component_id: string
-          cost?: number | null
           created_at?: string
           distance_at_action: number
           id?: string
@@ -209,7 +234,6 @@ export type Database = {
         Update: {
           action_type?: string
           bike_component_id?: string
-          cost?: number | null
           created_at?: string
           distance_at_action?: number
           id?: string
@@ -230,7 +254,7 @@ export type Database = {
           component_type_id: string
           created_at: string
           id: string
-          notes: string | null
+          purchase_date: string | null
           purchase_price: number | null
           quantity: number
           updated_at: string
@@ -240,7 +264,7 @@ export type Database = {
           component_type_id: string
           created_at?: string
           id?: string
-          notes?: string | null
+          purchase_date?: string | null
           purchase_price?: number | null
           quantity?: number
           updated_at?: string
@@ -250,7 +274,7 @@ export type Database = {
           component_type_id?: string
           created_at?: string
           id?: string
-          notes?: string | null
+          purchase_date?: string | null
           purchase_price?: number | null
           quantity?: number
           updated_at?: string
@@ -266,11 +290,37 @@ export type Database = {
           },
         ]
       }
+      password_reset_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          token: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
-          full_name: string | null
           id: string
           strava_access_token: string | null
           strava_athlete_id: string | null
@@ -281,7 +331,6 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
-          full_name?: string | null
           id?: string
           strava_access_token?: string | null
           strava_athlete_id?: string | null
@@ -292,7 +341,6 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
-          full_name?: string | null
           id?: string
           strava_access_token?: string | null
           strava_athlete_id?: string | null
@@ -302,37 +350,136 @@ export type Database = {
         }
         Relationships: []
       }
-      strava_activities: {
+      receipts: {
         Row: {
-          bike_id: string | null
+          analysis_result: Json | null
+          analysis_status: string
           created_at: string
-          distance: number
+          extracted_items: Json | null
           id: string
-          processed_at: string
-          strava_activity_id: string
+          image_url: string
+          language_detected: string | null
+          original_filename: string
+          processing_status: string | null
+          purchase_date: string | null
+          receipt_type: string | null
+          store_name: string | null
+          total_amount: number | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          bike_id?: string | null
+          analysis_result?: Json | null
+          analysis_status?: string
           created_at?: string
-          distance: number
+          extracted_items?: Json | null
           id?: string
-          processed_at?: string
-          strava_activity_id: string
+          image_url: string
+          language_detected?: string | null
+          original_filename: string
+          processing_status?: string | null
+          purchase_date?: string | null
+          receipt_type?: string | null
+          store_name?: string | null
+          total_amount?: number | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          analysis_result?: Json | null
+          analysis_status?: string
+          created_at?: string
+          extracted_items?: Json | null
+          id?: string
+          image_url?: string
+          language_detected?: string | null
+          original_filename?: string
+          processing_status?: string | null
+          purchase_date?: string | null
+          receipt_type?: string | null
+          store_name?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      spending_summary: {
+        Row: {
+          created_at: string
+          id: string
+          period: string
+          period_end: string
+          period_start: string
+          total_amount: number
+          total_items: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period: string
+          period_end: string
+          period_start: string
+          total_amount?: number
+          total_items?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period?: string
+          period_end?: string
+          period_start?: string
+          total_amount?: number
+          total_items?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      strava_activities: {
+        Row: {
+          activity_id: number
+          activity_type: string | null
+          bike_id: string | null
+          created_at: string
+          distance: number | null
+          id: string
+          name: string | null
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: number
+          activity_type?: string | null
           bike_id?: string | null
           created_at?: string
-          distance?: number
+          distance?: number | null
           id?: string
-          processed_at?: string
-          strava_activity_id?: string
+          name?: string | null
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: number
+          activity_type?: string | null
+          bike_id?: string | null
+          created_at?: string
+          distance?: number | null
+          id?: string
+          name?: string | null
+          start_date?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "fk_strava_activities_bike"
+            foreignKeyName: "strava_activities_bike_id_fkey"
             columns: ["bike_id"]
             isOneToOne: false
             referencedRelation: "bikes"
