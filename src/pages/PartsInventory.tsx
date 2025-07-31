@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Package, Wrench, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Plus, Package, Wrench, ShoppingCart, Receipt, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ReceiptUpload from '@/components/ReceiptUpload';
 
 interface InventoryItem {
   id: string;
@@ -38,6 +39,7 @@ const PartsInventory = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [componentTypes, setComponentTypes] = useState<ComponentType[]>([]);
   const [showAddItem, setShowAddItem] = useState(false);
+  const [showReceiptUpload, setShowReceiptUpload] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -222,10 +224,20 @@ const PartsInventory = () => {
             <img src="/lovable-uploads/4ff90988-aa97-4e30-a9cc-2d87ae0687bd.png" alt="BMT" className="h-6 w-6" />
             <h1 className="text-lg font-semibold">Parts Inventory</h1>
           </div>
-          <Button size="sm" onClick={() => setShowAddItem(true)} className="gap-1">
-            <Plus className="h-3 w-3" />
-            <span className="hidden sm:inline">Add Part</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/spending-overview')} className="gap-1">
+              <BarChart3 className="h-3 w-3" />
+              <span className="hidden sm:inline">Spending</span>
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowReceiptUpload(true)} className="gap-1">
+              <Receipt className="h-3 w-3" />
+              <span className="hidden sm:inline">Upload Receipt</span>
+            </Button>
+            <Button size="sm" onClick={() => setShowAddItem(true)} className="gap-1">
+              <Plus className="h-3 w-3" />
+              <span className="hidden sm:inline">Add Part</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -286,12 +298,18 @@ const PartsInventory = () => {
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No parts in inventory</h3>
                 <p className="text-muted-foreground mb-4">
-                  Add parts to keep track of what you have at home.
+                  Add parts manually or upload receipts to automatically populate your inventory.
                 </p>
-                <Button onClick={() => setShowAddItem(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Your First Part
-                </Button>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => setShowReceiptUpload(true)} className="gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Upload Receipt
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAddItem(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Manually
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -430,6 +448,13 @@ const PartsInventory = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Receipt Upload Dialog */}
+      <ReceiptUpload
+        open={showReceiptUpload}
+        onOpenChange={setShowReceiptUpload}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };

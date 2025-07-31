@@ -1,1 +1,32 @@
-project_id = "bzizesnqjsmserojzeoc"
+
+project_id = "qpsuzitebosqylldefup"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54324
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[functions.password-reset]
+verify_jwt = false
+
+[functions.analyze-receipt]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

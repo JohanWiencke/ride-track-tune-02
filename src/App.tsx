@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,9 +8,9 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import StravaCallback from "./pages/StravaCallback";
-
 import Stats from "./pages/Stats";
 import PartsInventory from "./pages/PartsInventory";
+import SpendingOverview from "./pages/SpendingOverview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/parts-inventory" element={<PartsInventory />} />
+            <Route path="/spending-overview" element={<SpendingOverview />} />
             <Route path="/strava-callback" element={<StravaCallback />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

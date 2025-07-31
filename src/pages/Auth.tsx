@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,12 +9,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Bike, Lock, User } from 'lucide-react';
+import PasswordReset from '@/components/PasswordReset';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -47,11 +50,19 @@ const Auth = () => {
     const { error } = await signUp(email, password, fullName);
     
     if (error) {
-      toast({
-        title: "Sign up failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error.message.includes('already registered')) {
+        toast({
+          title: "Email already exists",
+          description: "This email is already registered. Try signing in or reset your password.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sign up failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "Account created!",
@@ -113,6 +124,14 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
+                <Button 
+                  type="button" 
+                  variant="link" 
+                  className="w-full" 
+                  onClick={() => setShowPasswordReset(true)}
+                >
+                  Forgot your password?
+                </Button>
               </form>
             </TabsContent>
             
@@ -158,6 +177,11 @@ const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      <PasswordReset
+        open={showPasswordReset}
+        onOpenChange={setShowPasswordReset}
+      />
     </div>
   );
 };
