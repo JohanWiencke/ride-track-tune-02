@@ -295,10 +295,10 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
     // Get existing processed activities to avoid duplicates
     const { data: processedActivities } = await supabaseClient
       .from('strava_activities')
-      .select('strava_activity_id')
+      .select('activity_id')
       .eq('user_id', userId);
 
-    const processedActivityIds = new Set(processedActivities?.map(a => a.strava_activity_id) || []);
+    const processedActivityIds = new Set(processedActivities?.map(a => a.activity_id) || []);
 
     // Get user's bikes for matching
     const { data: userBikes } = await supabaseClient
@@ -310,7 +310,7 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
 
     for (const activity of activities) {
       // Skip if already processed
-      if (processedActivityIds.has(activity.id.toString())) {
+      if (processedActivityIds.has(activity.id)) {
         continue;
       }
 
@@ -407,9 +407,12 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
         .from('strava_activities')
         .insert({
           user_id: userId,
-          strava_activity_id: activity.id.toString(),
+          activity_id: activity.id,
           bike_id: bikeId,
           distance: distanceKm,
+          activity_type: activity.type,
+          name: activity.name,
+          start_date: activity.start_date,
         });
 
       if (activityError) {

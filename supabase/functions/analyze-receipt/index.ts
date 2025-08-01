@@ -15,28 +15,16 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const googleApiKey = Deno.env.get('GOOGLE_CLOUD_VISION_API_KEY');
 
     console.log('Environment check:', {
       hasSupabaseUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceKey,
-      hasGoogleKey: !!googleApiKey
+      hasServiceKey: !!supabaseServiceKey
     });
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing Supabase configuration');
       return new Response(JSON.stringify({ 
         error: 'Server configuration error: Missing Supabase credentials' 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    if (!googleApiKey) {
-      console.error('Missing Google Cloud Vision API key');
-      return new Response(JSON.stringify({ 
-        error: 'Server configuration error: Missing Google Cloud Vision API key' 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -73,42 +61,32 @@ serve(async (req) => {
 
     console.log('Starting receipt analysis for receiptId:', receiptId);
 
-    // Call Google Cloud Vision API
-    const visionResponse = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requests: [{
-            image: {
-              content: imageBase64
-            },
-            features: [{
-              type: 'TEXT_DETECTION'
-            }]
-          }]
-        })
-      }
-    );
+    // Call OCR.Space API
+    const formData = new FormData();
+    formData.append('base64Image', `data:image/jpeg;base64,${imageBase64}`);
+    formData.append('apikey', 'K81966610288957');
+    formData.append('language', 'eng');
 
-    if (!visionResponse.ok) {
-      const errorText = await visionResponse.text();
-      console.error('Vision API error:', errorText);
+    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!ocrResponse.ok) {
+      const errorText = await ocrResponse.text();
+      console.error('OCR.Space API error:', errorText);
       return new Response(JSON.stringify({ 
-        error: `Vision API error: ${visionResponse.status} - ${errorText}` 
+        error: `OCR API error: ${ocrResponse.status} - ${errorText}` 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const visionData = await visionResponse.json();
+    const ocrData = await ocrResponse.json();
     
-    if (!visionData.responses || !visionData.responses[0]) {
-      console.error('No response from Vision API');
+    if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
+      console.error('No response from OCR API');
       return new Response(JSON.stringify({ 
         error: 'No text detected in image' 
       }), {
@@ -117,7 +95,7 @@ serve(async (req) => {
       });
     }
 
-    const extractedText = visionData.responses[0].textAnnotations?.[0]?.description || '';
+    const extractedText = ocrData.ParsedResults[0].ParsedText || '';
     console.log('Extracted text length:', extractedText.length);
     
     if (!extractedText) {
