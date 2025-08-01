@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
@@ -8,6 +7,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('Receipt analysis function called');
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,15 +17,10 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    console.log('Environment check:', {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceKey
-    });
-
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing Supabase configuration');
       return new Response(JSON.stringify({ 
-        error: 'Server configuration error: Missing Supabase credentials' 
+        error: 'Server configuration error' 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -33,7 +29,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body
     let requestBody;
     try {
       requestBody = await req.json();
@@ -50,7 +45,7 @@ serve(async (req) => {
     const { receiptId, imageBase64 } = requestBody;
 
     if (!receiptId || !imageBase64) {
-      console.error('Missing required parameters:', { hasReceiptId: !!receiptId, hasImageBase64: !!imageBase64 });
+      console.error('Missing required parameters');
       return new Response(JSON.stringify({ 
         error: 'Missing receiptId or imageBase64' 
       }), {
@@ -76,7 +71,7 @@ serve(async (req) => {
       const errorText = await ocrResponse.text();
       console.error('OCR.Space API error:', errorText);
       return new Response(JSON.stringify({ 
-        error: `OCR API error: ${ocrResponse.status} - ${errorText}` 
+        error: `OCR API error: ${ocrResponse.status}` 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -86,7 +81,7 @@ serve(async (req) => {
     const ocrData = await ocrResponse.json();
     
     if (!ocrData.ParsedResults || ocrData.ParsedResults.length === 0) {
-      console.error('No response from OCR API');
+      console.error('No text detected from OCR');
       return new Response(JSON.stringify({ 
         error: 'No text detected in image' 
       }), {
@@ -99,7 +94,6 @@ serve(async (req) => {
     console.log('Extracted text length:', extractedText.length);
     
     if (!extractedText) {
-      console.log('No text could be extracted from the image');
       return new Response(JSON.stringify({ 
         error: 'No text could be extracted from the image' 
       }), {
@@ -108,8 +102,8 @@ serve(async (req) => {
       });
     }
 
-    // Simple bike parts detection (basic keywords)
-    const bikeKeywords = ['chain', 'tire', 'brake', 'wheel', 'pedal', 'gear', 'spoke', 'handlebar', 'saddle'];
+    // Simple bike parts detection
+    const bikeKeywords = ['chain', 'tire', 'brake', 'wheel', 'pedal', 'gear', 'spoke', 'handlebar', 'saddle', 'cassette', 'derailleur'];
     const foundParts = [];
     
     const lines = extractedText.split('\n');
@@ -118,7 +112,6 @@ serve(async (req) => {
       const hasBikePart = bikeKeywords.some(keyword => lowerLine.includes(keyword));
       
       if (hasBikePart) {
-        // Extract price from line
         const priceMatch = line.match(/(\d+[.,]\d{2}|\d+)/g);
         if (priceMatch) {
           const price = parseFloat(priceMatch[priceMatch.length - 1].replace(',', '.'));
@@ -151,7 +144,7 @@ serve(async (req) => {
     if (updateError) {
       console.error('Database update error:', updateError);
       return new Response(JSON.stringify({ 
-        error: `Database update failed: ${updateError.message}` 
+        error: 'Database update failed' 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -160,23 +153,18 @@ serve(async (req) => {
 
     // Add found parts to inventory if any
     if (foundParts.length > 0) {
-      // Get receipt to find user_id
-      const { data: receipt, error: receiptError } = await supabase
+      const { data: receipt } = await supabase
         .from('receipts')
         .select('user_id')
         .eq('id', receiptId)
         .single();
 
-      if (receiptError) {
-        console.error('Error fetching receipt:', receiptError);
-        // Don't fail here, analysis was successful
-      } else {
-        // Get default component type
+      if (receipt) {
         const { data: defaultType } = await supabase
           .from('component_types')
           .select('id')
           .eq('name', 'Other')
-          .single();
+          .maybeSingle();
 
         if (defaultType) {
           const inventoryItems = foundParts.map(part => ({
@@ -187,14 +175,9 @@ serve(async (req) => {
             notes: `Auto-added from receipt: ${part.name}`
           }));
 
-          const { error: inventoryError } = await supabase
+          await supabase
             .from('parts_inventory')
             .insert(inventoryItems);
-
-          if (inventoryError) {
-            console.error('Error adding to inventory:', inventoryError);
-            // Don't fail here, analysis was successful
-          }
         }
       }
     }
