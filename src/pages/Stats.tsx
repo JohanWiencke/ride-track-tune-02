@@ -1,83 +1,67 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, TrendingUp, Calendar, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Activity, Calendar, MapPin, TrendingUp } from 'lucide-react';
 
-interface StravaStats {
-  total_distance: number;
-  total_rides: number;
-  total_elevation: number;
-  total_time?: number;
-  biggest_ride_distance?: number;
-  recent_activities?: Array<{
-    name: string;
+interface StatsData {
+  ytd_ride_totals: {
+    count: number;
     distance: number;
     moving_time: number;
-    total_elevation_gain: number;
-    start_date: string;
-  }>;
+    elevation_gain: number;
+  };
+  all_ride_totals: {
+    count: number;
+    distance: number;
+    moving_time: number;
+    elevation_gain: number;
+  };
 }
 
 const Stats = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [stravaStats, setStravaStats] = useState<StravaStats | null>(null);
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      if (!user?.id) return;
-
-      // Check if user has Strava connected
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('strava_access_token')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile?.strava_access_token) {
-        toast({
-          title: "No Strava Connection",
-          description: "Please connect your Strava account to view stats.",
-          variant: "destructive",
-        });
-        navigate('/');
+    const checkAndFetchStats = async () => {
+      if (!user?.id) {
+        navigate('/auth');
         return;
       }
 
-      // Fetch stats from Strava API
-      const { data, error } = await supabase.functions.invoke('strava-stats', {
-        body: { year: new Date().getFullYear() }
-      });
-
-      if (error) {
-        console.error('Strava stats error:', error);
-        throw error;
+      try {
+        setLoading(true);
+        
+        // For now, show a message that stats will be available when Strava is connected
+        toast({
+          title: "Stats Coming Soon",
+          description: "Connect your Strava account to view detailed cycling statistics.",
+        });
+        navigate('/');
+        return;
+      } catch (error) {
+        console.error('Error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load statistics.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-      
-      if (data) {
-        setStravaStats(data);
-      }
+    };
 
-    } catch (error: any) {
-      console.error('Error fetching stats:', error);
-      toast({
-        title: "Error fetching stats",
-        description: "Unable to load your cycling stats. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    checkAndFetchStats();
+  }, [user, navigate, toast]);
+
+  const formatDistance = (distance: number) => {
+    return (distance / 1000).toFixed(1);
   };
 
   const formatTime = (seconds: number) => {
@@ -86,16 +70,12 @@ const Stats = () => {
     return `${hours}h ${minutes}m`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your cycling stats...</p>
+          <p className="text-muted-foreground">Loading statistics...</p>
         </div>
       </div>
     );
@@ -103,108 +83,106 @@ const Stats = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-glass-blue/10 via-background to-glass-purple/10">
-      <header className="border-b glass-card">
-        <div className="container flex h-14 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <img src="/lovable-uploads/0bcdc662-0aa0-4fc2-97c0-2ca4dae55f49.png" alt="BMT" className="h-6 w-6" />
-            <h1 className="text-lg font-semibold">Cycling Stats</h1>
-          </div>
+      <div className="container py-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-2xl font-bold">Cycling Statistics</h1>
         </div>
-      </header>
 
-      <div className="container py-6 space-y-6">
-        {!stravaStats ? (
+        {!stats && (
           <Card className="glass-card p-8 text-center">
-            <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Stats Not Available</h3>
+            <Activity className="h-12 w-12 text-glass-primary mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">No Statistics Available</h2>
             <p className="text-muted-foreground mb-4">
-              Your cycling stats will appear here once your Strava connection is working properly.
+              Connect your Strava account to view detailed cycling statistics and track your progress.
             </p>
+            <Button onClick={() => navigate('/')}>
+              Return to Dashboard
+            </Button>
           </Card>
-        ) : (
-          <>
-            {/* Overview Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <MapPin className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{(stravaStats.total_distance / 1000).toFixed(0)} km</p>
-                      <p className="text-sm text-muted-foreground">Total Distance</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        )}
 
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Activity className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{stravaStats.total_rides}</p>
-                      <p className="text-sm text-muted-foreground">Total Rides</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <TrendingUp className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{stravaStats.total_elevation.toLocaleString()} m</p>
-                      <p className="text-sm text-muted-foreground">Total Elevation</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Activities */}
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Year to Date Stats */}
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Recent Activities
+                  Year to Date ({new Date().getFullYear()})
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                {!stravaStats.recent_activities || stravaStats.recent_activities.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Recent activities data not available.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {stravaStats.recent_activities.map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                        <div>
-                          <h4 className="font-medium">{activity.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(activity.start_date)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{(activity.distance / 1000).toFixed(1)} km</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatTime(activity.moving_time)} • {activity.total_elevation_gain}m elevation
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {stats.ytd_ride_totals.count}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Rides</div>
                   </div>
-                )}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {formatDistance(stats.ytd_ride_totals.distance)} km
+                    </div>
+                    <div className="text-sm text-muted-foreground">Distance</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {formatTime(stats.ytd_ride_totals.moving_time)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Moving Time</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {stats.ytd_ride_totals.elevation_gain.toLocaleString()} m
+                    </div>
+                    <div className="text-sm text-muted-foreground">Elevation</div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </>
+
+            {/* All Time Stats */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  All Time
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {stats.all_ride_totals.count}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Rides</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {formatDistance(stats.all_ride_totals.distance)} km
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Distance</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {formatTime(stats.all_ride_totals.moving_time)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Time</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {stats.all_ride_totals.elevation_gain.toLocaleString()} m
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Elevation</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import StravaCallback from "./pages/StravaCallback";
+
 import Stats from "./pages/Stats";
 import PartsInventory from "./pages/PartsInventory";
 import SpendingOverview from "./pages/SpendingOverview";
@@ -28,7 +28,7 @@ const App = () => (
             <Route path="/stats" element={<Stats />} />
             <Route path="/parts-inventory" element={<PartsInventory />} />
             <Route path="/spending-overview" element={<SpendingOverview />} />
-            <Route path="/strava-callback" element={<StravaCallback />} />
+            
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -4,14 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Bike, Settings, AlertTriangle, CheckCircle, BarChart3, Package, Euro, Edit, Menu } from 'lucide-react';
+import { Plus, Bike, Settings, AlertTriangle, CheckCircle, Package, Euro, Edit, Menu } from 'lucide-react';
 import { AddBikeDialog } from '@/components/AddBikeDialog';
 import { BikeComponentsDialog } from '@/components/BikeComponentsDialog';
 import { EditBikeDialog } from '@/components/EditBikeDialog';
-import { StravaConnect } from '@/components/StravaConnect';
 import { TimeBasedGreeting } from '@/components/TimeBasedGreeting';
 import { WearProgress } from '@/components/WearProgress';
 import { InventoryWidget } from '@/components/InventoryWidget';
@@ -63,54 +61,16 @@ const Dashboard = () => {
   const [showAddBike, setShowAddBike] = useState(false);
   const [selectedBike, setSelectedBike] = useState<Bike | null>(null);
   const [editingBike, setEditingBike] = useState<Bike | null>(null);
-  const [isStravaConnected, setIsStravaConnected] = useState(false);
   const [inventoryStats, setInventoryStats] = useState({ totalParts: 0, totalValue: 0 });
-  const [stravaStats, setStravaStats] = useState({ totalDistance: 0, totalActivities: 0 });
 
   useEffect(() => {
     fetchBikes();
     fetchInventoryStats();
-    fetchStravaStats();
-    
-    // Check if we're returning from Strava authorization
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('strava_connected') === 'true') {
-      window.history.replaceState({}, '', window.location.pathname);
-      toast({
-        title: "Connected!",
-        description: "Your Strava account has been connected successfully.",
-      });
-    }
   }, []);
 
-  // Separate effect to handle connection status updates
   useEffect(() => {
-    const checkConnections = async () => {
-      if (!user?.id) return;
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('strava_access_token')
-        .eq('user_id', user.id)
-        .single();
-      
-      const stravaConnected = !!profile?.strava_access_token;
-      
-      setIsStravaConnected(stravaConnected);
-    };
-
-    // Check connection status every 2 seconds for 10 seconds after component mounts
-    const interval = setInterval(checkConnections, 2000);
-    const timeout = setTimeout(() => clearInterval(interval), 10000);
-
-    // Initial check
-    checkConnections();
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [user?.id]);
+    fetchComponents();
+  }, [selectedBike]);
 
   const fetchBikes = async () => {
     try {
@@ -149,6 +109,30 @@ const Dashboard = () => {
     }
   };
 
+  const fetchComponents = async () => {
+    if (!selectedBike) return;
+
+    try {
+      const { data: componentsData, error } = await supabase
+        .from('bike_components')
+        .select(`
+          *,
+          component_type:component_types(name, default_replacement_distance)
+        `)
+        .eq('bike_id', selectedBike.id)
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setComponents(componentsData || []);
+    } catch (error: any) {
+      toast({
+        title: "Error fetching components",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchInventoryStats = async () => {
     if (!user?.id) return;
 
@@ -166,26 +150,6 @@ const Dashboard = () => {
       setInventoryStats({ totalParts, totalValue });
     } catch (error) {
       console.error('Error fetching inventory stats:', error);
-    }
-  };
-
-  const fetchStravaStats = async () => {
-    if (!user?.id) return;
-
-    try {
-      const { data: stravaData, error } = await supabase
-        .from('strava_activities')
-        .select('distance')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      const totalActivities = stravaData?.length || 0;
-      const totalDistance = stravaData?.reduce((sum, activity) => sum + (activity.distance || 0), 0) || 0;
-
-      setStravaStats({ totalDistance, totalActivities });
-    } catch (error) {
-      console.error('Error fetching Strava stats:', error);
     }
   };
 
@@ -243,12 +207,6 @@ const Dashboard = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 glass-dropdown animate-smooth-dropdown">
-                {isStravaConnected && (
-                  <DropdownMenuItem onClick={() => navigate('/stats')} className="glass-dropdown-item">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    {t('stats')}
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem onClick={() => navigate('/parts-inventory')} className="glass-dropdown-item">
                   <Package className="h-4 w-4 mr-2" />
                   {t('inventory')}
@@ -265,119 +223,76 @@ const Dashboard = () => {
 
       <div className="container py-4 space-y-6">
         <TimeBasedGreeting />
-        {/* Compact Layout: Strava + Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Integration - Takes 2 columns on large screens */}
-          <div className="lg:col-span-2 grid grid-cols-1 gap-4">
-            <StravaConnect 
-              isConnected={isStravaConnected} 
-              onConnectionChange={(connected) => {
-                setIsStravaConnected(connected);
-                if (connected) {
-                  fetchBikes(); // Refresh data after connection
-                }
-              }}
-              onSyncComplete={() => {
-                fetchBikes(); // Refresh bikes after sync
-              }}
-            />
+        
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Enhanced Liquid Glass Bike Widget */}
+          <div className="relative group animate-float">
+            <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/40 via-glass-purple/30 to-glass-blue/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
+            <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(139,69,219,0.4)] hover:shadow-[0_12px_60px_rgba(139,69,219,0.6)] hover:transform hover:scale-105">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
+              <CardContent className="relative p-4 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/50 to-glass-purple/50 rounded-xl blur-md animate-glow"></div>
+                    <div className="relative p-3 bg-gradient-to-br from-glass-blue/40 to-glass-purple/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
+                      <Bike className="h-5 w-5 text-white drop-shadow-2xl" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-black bg-gradient-to-r from-white via-glass-blue to-glass-purple bg-clip-text text-transparent drop-shadow-lg">{bikes.length}</p>
+                    <p className="text-sm text-white/90 font-semibold tracking-wide">Bikes Registered</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
           
-          {/* Quick Stats - Takes 3 columns on large screens, stacks on smaller */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Enhanced Liquid Glass Bike Widget */}
-              <div className="relative group animate-float">
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/40 via-glass-purple/30 to-glass-blue/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
-                <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(139,69,219,0.4)] hover:shadow-[0_12px_60px_rgba(139,69,219,0.6)] hover:transform hover:scale-105">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
-                  <CardContent className="relative p-4 z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-glass-blue/50 to-glass-purple/50 rounded-xl blur-md animate-glow"></div>
-                        <div className="relative p-3 bg-gradient-to-br from-glass-blue/40 to-glass-purple/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
-                          <Bike className="h-5 w-5 text-white drop-shadow-2xl" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-3xl font-black bg-gradient-to-r from-white via-glass-blue to-glass-purple bg-clip-text text-transparent drop-shadow-lg">{bikes.length}</p>
-                        <p className="text-sm text-white/90 font-semibold tracking-wide">Bikes Registered</p>
-                      </div>
+          {/* Enhanced Liquid Glass Components Widget */}
+          <div className="relative group animate-float" style={{ animationDelay: '0.5s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-glass-success/40 via-glass-primary/30 to-glass-success/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
+            <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(16,185,129,0.4)] hover:shadow-[0_12px_60px_rgba(16,185,129,0.6)] hover:transform hover:scale-105">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
+              <CardContent className="relative p-4 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-glass-success/50 to-glass-primary/50 rounded-xl blur-md animate-glow"></div>
+                    <div className="relative p-3 bg-gradient-to-br from-glass-success/40 to-glass-primary/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
+                      <CheckCircle className="h-5 w-5 text-white drop-shadow-2xl" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              {/* Enhanced Liquid Glass Components Widget */}
-              <div className="relative group animate-float" style={{ animationDelay: '0.5s' }}>
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-success/40 via-glass-primary/30 to-glass-success/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
-                <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(16,185,129,0.4)] hover:shadow-[0_12px_60px_rgba(16,185,129,0.6)] hover:transform hover:scale-105">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
-                  <CardContent className="relative p-4 z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-glass-success/50 to-glass-primary/50 rounded-xl blur-md animate-glow"></div>
-                        <div className="relative p-3 bg-gradient-to-br from-glass-success/40 to-glass-primary/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
-                          <CheckCircle className="h-5 w-5 text-white drop-shadow-2xl" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-3xl font-black bg-gradient-to-r from-white via-glass-success to-glass-primary bg-clip-text text-transparent drop-shadow-lg">{components.length}</p>
-                        <p className="text-sm text-white/90 font-semibold tracking-wide">Components Tracked</p>
-                      </div>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-black bg-gradient-to-r from-white via-glass-success to-glass-primary bg-clip-text text-transparent drop-shadow-lg">{components.length}</p>
+                    <p className="text-sm text-white/90 font-semibold tracking-wide">Components Tracked</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Enhanced Liquid Glass Attention Widget */}
+          <div className="relative group animate-float" style={{ animationDelay: '1s' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/40 via-red-500/30 to-glass-warning/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
+            <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_60px_rgba(251,146,60,0.6)] hover:transform hover:scale-105">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
+              <CardContent className="relative p-4 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/50 to-red-500/50 rounded-xl blur-md animate-glow"></div>
+                    <div className="relative p-3 bg-gradient-to-br from-glass-warning/40 to-red-500/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
+                      <AlertTriangle className="h-5 w-5 text-white drop-shadow-2xl" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              {/* Enhanced Liquid Glass Attention Widget */}
-              <div className="relative group animate-float" style={{ animationDelay: '1s' }}>
-                <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/40 via-red-500/30 to-glass-warning/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
-                <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_60px_rgba(251,146,60,0.6)] hover:transform hover:scale-105">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
-                  <CardContent className="relative p-4 z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-glass-warning/50 to-red-500/50 rounded-xl blur-md animate-glow"></div>
-                        <div className="relative p-3 bg-gradient-to-br from-glass-warning/40 to-red-500/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
-                          <AlertTriangle className="h-5 w-5 text-white drop-shadow-2xl" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-3xl font-black bg-gradient-to-r from-white via-glass-warning to-red-400 bg-clip-text text-transparent drop-shadow-lg">{getComponentsNeedingAttention().length}</p>
-                        <p className="text-sm text-white/90 font-semibold tracking-wide">Need Attention</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              {/* Enhanced Liquid Glass Garage Value Widget */}
-              <div className="relative group animate-float" style={{ animationDelay: '1.5s' }}>
-                <div className="absolute inset-0 bg-gradient-to-br from-green-400/40 via-blue-500/30 to-green-400/40 rounded-xl blur-2xl group-hover:blur-xl transition-all duration-700 animate-pulse"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-xl border-2 border-white/30 shadow-2xl"></div>
-                <Card className="relative bg-white/15 backdrop-blur-2xl hover:bg-white/20 transition-all duration-700 overflow-hidden border-0 shadow-[0_8px_40px_rgba(34,197,94,0.4)] hover:shadow-[0_12px_60px_rgba(34,197,94,0.6)] hover:transform hover:scale-105">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 opacity-60"></div>
-                  <CardContent className="relative p-4 z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-green-400/50 to-blue-500/50 rounded-xl blur-md animate-glow"></div>
-                        <div className="relative p-3 bg-gradient-to-br from-green-400/40 to-blue-500/30 rounded-xl backdrop-blur-sm border-2 border-white/40 shadow-xl">
-                          <Euro className="h-5 w-5 text-white drop-shadow-2xl" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-3xl font-black bg-gradient-to-r from-white via-green-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">€{getTotalGarageValue().toFixed(0)}</p>
-                        <p className="text-sm text-white/90 font-semibold tracking-wide">Garage Value</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-black bg-gradient-to-r from-white via-glass-warning to-red-400 bg-clip-text text-transparent drop-shadow-lg">{getComponentsNeedingAttention().length}</p>
+                    <p className="text-sm text-white/90 font-semibold tracking-wide">Need Attention</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
