@@ -25,9 +25,6 @@ enable_confirmations = false
 [functions.password-reset]
 verify_jwt = false
 
-[functions.analyze-receipt]
-verify_jwt = true
-
 [functions.delete-account]
 verify_jwt = true
 

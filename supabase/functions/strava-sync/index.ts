@@ -27,9 +27,18 @@ serve(async (req) => {
       });
     }
 
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Missing Authorization header');
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
+        headers: { Authorization: authHeader },
       },
     });
 
@@ -93,7 +102,9 @@ async function syncBikesFromStrava(supabaseClient: any, userId: string, accessTo
     });
 
     if (!athleteResponse.ok) {
-      throw new Error('Failed to fetch athlete profile');
+      const errorText = await athleteResponse.text();
+      console.error('Strava API error:', athleteResponse.status, errorText);
+      throw new Error(`Failed to fetch athlete profile: ${athleteResponse.status}`);
     }
 
     const athlete = await athleteResponse.json();
@@ -169,7 +180,9 @@ async function processActivities(supabaseClient: any, userId: string, accessToke
     );
 
     if (!activitiesResponse.ok) {
-      throw new Error('Failed to fetch activities');
+      const errorText = await activitiesResponse.text();
+      console.error('Strava activities API error:', activitiesResponse.status, errorText);
+      throw new Error(`Failed to fetch activities: ${activitiesResponse.status}`);
     }
 
     const activities = await activitiesResponse.json();
