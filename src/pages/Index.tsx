@@ -9,6 +9,8 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  console.log('Index component rendered:', { user: !!user, loading, currentPath: window.location.pathname });
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -61,15 +63,18 @@ const Index = () => {
         });
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      
-      // Normal auth redirect for non-OAuth users
-      else if (!loading && !user && !code) {
-        navigate('/auth');
-      }
     };
 
     handleOAuthCallback();
-  }, [user, loading, navigate, toast]);
+  }, [toast]);
+
+  useEffect(() => {
+    console.log('Index redirect useEffect triggered:', { user: !!user, loading });
+    if (!loading && !user) {
+      console.log('Redirecting to /auth');
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
 
   if (loading) {
     return (
