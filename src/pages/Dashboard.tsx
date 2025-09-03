@@ -50,7 +50,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const fetchBikes = async () => {
-    if (!user) return;
+    if (!user?.id) {
+      console.log('No user or user.id, skipping fetchBikes');
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -83,7 +87,10 @@ const Dashboard = () => {
   };
 
   const checkStravaConnection = async () => {
-    if (!user) return;
+    if (!user?.id) {
+      console.log('No user or user.id, skipping checkStravaConnection');
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -101,8 +108,11 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchBikes();
-    checkStravaConnection();
+    console.log('Dashboard useEffect triggered:', { hasUser: !!user, hasUserId: !!user?.id });
+    if (user?.id) {
+      fetchBikes();
+      checkStravaConnection();
+    }
   }, [user]);
 
   const handleBikeAdded = () => {
@@ -157,7 +167,8 @@ const Dashboard = () => {
     return conditions[bikeIndex % conditions.length] || 75;
   };
 
-  if (loading) {
+  if (loading || !user?.id) {
+    console.log('Dashboard showing loading:', { loading, hasUser: !!user, hasUserId: !!user?.id });
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -175,7 +186,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Manage your cycling fleet and track performance</p>
           </div>
           <div className="flex items-center gap-2">
-            {user && (
+            {user?.id && (
               <UserProfilePopup 
                 userEmail={user.email || ''}
                 fullName={user.user_metadata?.full_name}
@@ -189,6 +200,12 @@ const Dashboard = () => {
                   Profile
                 </Button>
               </UserProfilePopup>
+            )}
+            {!user?.id && (
+              <Button variant="outline" size="sm" disabled>
+                <Settings className="h-4 w-4 mr-2" />
+                Profile
+              </Button>
             )}
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
