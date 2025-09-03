@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,36 +16,41 @@ const Auth = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  console.log('Auth component render:', { hasUser: !!user, authLoading, currentPath: window.location.pathname });
+
   // Redirect if already authenticated
   useEffect(() => {
-    if (user) {
-      console.log('User already authenticated, redirecting to dashboard');
-      navigate('/');
+    console.log('Auth useEffect - checking user:', { hasUser: !!user, authLoading });
+    if (!authLoading && user) {
+      console.log('User authenticated, redirecting to dashboard');
+      navigate('/', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted for sign in');
     setLoading(true);
     
     const { error } = await signIn(email, password);
     
     if (error) {
+      console.log('Sign in failed:', error.message);
       toast({
         title: "Sign in failed",
         description: error.message,
         variant: "destructive",
       });
     } else {
+      console.log('Sign in successful, waiting for auth state update...');
       toast({
         title: "Welcome back!",
         description: "You've been signed in successfully.",
       });
-      // Remove manual navigation - let auth state change handle it
     }
     setLoading(false);
   };
@@ -79,6 +83,15 @@ const Auth = () => {
     }
     setLoading(false);
   };
+
+  // Show loading spinner while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
