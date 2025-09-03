@@ -42,7 +42,7 @@ const Dashboard = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isComponentsDialogOpen, setIsComponentsDialogOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
   const [loading, setLoading] = useState(true);
   const [stravaConnected, setStravaConnected] = useState(false);
   const { toast } = useToast();
@@ -175,14 +175,21 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Manage your cycling fleet and track performance</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setIsProfileOpen(true)}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Profile
-            </Button>
+            {user && (
+              <UserProfilePopup 
+                userEmail={user.email || ''}
+                fullName={user.user_metadata?.full_name}
+                bikeCount={bikes.length}
+                garageValue={bikes.reduce((total, bike) => total + (bike.price || 0), 0)}
+                partInventoryCount={0}
+                partInventoryValue={0}
+              >
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Profile
+                </Button>
+              </UserProfilePopup>
+            )}
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Bike
@@ -380,10 +387,6 @@ const Dashboard = () => {
         onComponentsUpdated={fetchBikes}
       />
 
-      <UserProfilePopup 
-        open={isProfileOpen} 
-        onOpenChange={setIsProfileOpen}
-      />
     </div>
   );
 };
