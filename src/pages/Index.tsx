@@ -17,56 +17,39 @@ const Index = () => {
       const state = urlParams.get('state');
       const error = urlParams.get('error');
 
-      // Check if this is a Strava callback
-      if (code && state === 'strava') {
+      // Handle Strava OAuth callback
+      if (code && state) {
         try {
+          console.log('Processing Strava OAuth callback...');
+          
           const { data, error } = await supabase.functions.invoke('strava-auth', {
-            body: { action: 'exchange_token', code }
+            body: { code, state },
+            headers: {
+              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+            },
           });
 
-          if (error) throw error;
+          if (error) {
+            throw error;
+          }
 
           toast({
-            title: "Strava Connected!",
-            description: `Connected as ${data.athlete.firstname} ${data.athlete.lastname}`,
+            title: 'Strava Connected!',
+            description: 'Your Strava account has been successfully connected.',
           });
-          
-          // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
+
+          console.log('Strava connection successful:', data);
         } catch (error: any) {
+          console.error('Error connecting Strava:', error);
           toast({
-            title: "Strava Connection Error",
-            description: error.message || "Failed to complete Strava connection",
-            variant: "destructive",
+            title: 'Connection Failed',
+            description: error.message || 'Failed to connect Strava account.',
+            variant: 'destructive',
           });
-          window.history.replaceState({}, document.title, window.location.pathname);
         }
-      }
-      
-      // Check if this is a Wahoo callback  
-      else if (code && state === 'wahoo') {
-        try {
-          const { data, error } = await supabase.functions.invoke('wahoo-auth', {
-            body: { action: 'exchange_token', code }
-          });
 
-          if (error) throw error;
-
-          toast({
-            title: "Wahoo Connected!",
-            description: "Your Wahoo account has been connected successfully.",
-          });
-          
-          // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error: any) {
-          toast({
-            title: "Wahoo Connection Error",
-            description: error.message || "Failed to complete Wahoo connection",
-            variant: "destructive",
-          });
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
+        // Clean up URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
       
       // Handle OAuth errors
