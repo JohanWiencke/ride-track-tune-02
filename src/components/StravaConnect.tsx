@@ -67,20 +67,51 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
 
   const handleSync = async () => {
     setIsSyncing(true);
+    console.log('🚀 Starting Strava sync process...');
+    
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      console.log('🔐 Getting session...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError);
+        throw new Error(`Session error: ${sessionError.message}`);
       }
+      
+      if (!session) {
+        console.error('❌ No session found');
+        throw new Error('No active session found');
+      }
+      
+      if (!session.access_token) {
+        console.error('❌ No access token in session');
+        throw new Error('No access token in session');
+      }
+      
+      console.log('✅ Session found, user ID:', session.user?.id);
+      console.log('🔑 Access token length:', session.access_token.length);
 
+      console.log('📡 Invoking strava-sync function...');
       const { data, error } = await supabase.functions.invoke('strava-sync', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
 
-      if (error) throw error;
+      console.log('📨 Function response data:', data);
+      console.log('📨 Function response error:', error);
 
+      if (error) {
+        console.error('❌ Sync error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+
+      console.log('✅ Sync completed successfully:', data);
       toast({
         title: "Sync Complete",
         description: "Your Strava bikes and activities have been synced successfully.",
@@ -89,13 +120,22 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
       // Trigger refresh of bikes list
       onSyncComplete?.();
     } catch (error: any) {
+      console.error('💥 Sync failed with error:', error);
+      console.error('💥 Error type:', typeof error);
+      console.error('💥 Error constructor:', error?.constructor?.name);
+      
+      const errorMessage = error instanceof Error ? error.message : 
+                          typeof error === 'string' ? error :
+                          'Unknown error occurred during sync';
+      
       toast({
-        title: "Sync Error",
-        description: error.message || "Failed to sync Strava activities",
+        title: "Sync Failed",
+        description: `Error: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
       setIsSyncing(false);
+      console.log('🏁 Sync process completed');
     }
   };
 

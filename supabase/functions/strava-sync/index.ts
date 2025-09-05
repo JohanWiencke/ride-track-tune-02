@@ -7,18 +7,26 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('Strava sync function called');
+  console.log('🚀 Strava sync function called');
+  console.log('📝 Request method:', req.method);
+  console.log('📝 Request URL:', req.url);
+  console.log('📝 Request headers:', Object.fromEntries(req.headers.entries()));
   
   if (req.method === 'OPTIONS') {
+    console.log('✅ OPTIONS request - returning CORS headers');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('🔧 Getting environment variables...');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
+    console.log('🔧 SUPABASE_URL exists:', !!supabaseUrl);
+    console.log('🔧 SUPABASE_ANON_KEY exists:', !!supabaseAnonKey);
+
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('Missing Supabase configuration');
+      console.error('❌ Missing Supabase configuration');
       return new Response(JSON.stringify({ 
         error: 'Server configuration error' 
       }), {
@@ -27,15 +35,20 @@ serve(async (req) => {
       });
     }
 
+    console.log('🔐 Checking authorization header...');
     const authHeader = req.headers.get('Authorization');
+    console.log('🔐 Auth header exists:', !!authHeader);
+    console.log('🔐 Auth header format:', authHeader ? `${authHeader.substring(0, 20)}...` : 'none');
+    
     if (!authHeader) {
-      console.error('Missing Authorization header');
+      console.error('❌ Missing Authorization header');
       return new Response(JSON.stringify({ error: 'Missing authorization' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
+    console.log('🔧 Creating Supabase client...');
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader },
@@ -47,27 +60,56 @@ serve(async (req) => {
     });
 
     // Get the user
+    console.log('👤 Getting user from token...');
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
 
+    console.log('👤 Auth error:', authError);
+    console.log('👤 User ID:', user?.id);
+    console.log('👤 User email:', user?.email);
+
     if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      console.error('❌ Auth error details:', {
+        error: authError,
+        message: authError?.message,
+        status: authError?.status,
+        name: authError?.name
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized',
+        details: authError?.message || 'No user found'
+      }), { 
         status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
-    console.log('Syncing data for user:', user.id);
+    console.log('✅ Syncing data for user:', user.id);
 
     // Get user's Strava tokens
+    console.log('🔍 Fetching user profile with Strava tokens...');
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('strava_access_token, strava_refresh_token')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (profileError || !profile?.strava_access_token) {
-      console.error('No Strava token found for user');
+    console.log('🔍 Profile error:', profileError);
+    console.log('🔍 Profile found:', !!profile);
+    console.log('🔍 Strava token exists:', !!profile?.strava_access_token);
+
+    if (profileError) {
+      console.error('❌ Profile fetch error:', profileError);
+      return new Response(JSON.stringify({ 
+        error: 'Profile fetch failed',
+        details: profileError.message 
+      }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    if (!profile?.strava_access_token) {
+      console.error('❌ No Strava token found for user');
       return new Response(JSON.stringify({ error: 'Strava not connected' }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -75,10 +117,13 @@ serve(async (req) => {
     }
 
     // Sync bikes and activities
+    console.log('🚴 Starting bike sync...');
     await syncBikesFromStrava(supabaseClient, user.id, profile.strava_access_token);
+    
+    console.log('🏃 Starting activity processing...');
     await processActivities(supabaseClient, user.id, profile.strava_access_token);
 
-    console.log('Strava sync completed successfully');
+    console.log('✅ Strava sync completed successfully');
     return new Response(JSON.stringify({ 
       success: true, 
       message: 'Sync completed successfully' 
@@ -87,9 +132,15 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error in strava-sync function:', error);
+    console.error('💥 Error in strava-sync function:', error);
+    console.error('💥 Error type:', typeof error);
+    console.error('💥 Error constructor:', error?.constructor?.name);
+    console.error('💥 Error message:', error?.message);
+    console.error('💥 Error stack:', error?.stack);
+    
     return new Response(JSON.stringify({ 
-      error: `Internal server error: ${error.message}` 
+      error: `Internal server error: ${error?.message || 'Unknown error'}`,
+      details: error?.stack || 'No stack trace available'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
