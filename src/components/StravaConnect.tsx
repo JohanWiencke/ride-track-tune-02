@@ -128,9 +128,16 @@ export function StravaConnect({ isConnected, onConnectionChange, onSyncComplete 
                           typeof error === 'string' ? error :
                           'Unknown error occurred during sync';
       
+      // Provide specific guidance if Strava isn't connected
+      const isStravaNotConnected = errorMessage.includes('Strava not connected') || 
+                                   errorMessage.includes('Unauthorized') ||
+                                   errorMessage.includes('No active session');
+      
       toast({
         title: "Sync Failed",
-        description: `Error: ${errorMessage}`,
+        description: isStravaNotConnected ? 
+          "Please connect your Strava account first before syncing activities." :
+          `Error: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
