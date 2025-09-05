@@ -1,281 +1,209 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Activity, Clock, TrendingUp, BarChart3 } from 'lucide-react';
-import { StravaConnect } from '@/components/StravaConnect';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Activity, TrendingUp, Calendar, MapPin } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-interface StatsData {
-  ytd_ride_totals: {
-    count: number;
+interface StravaStats {
+  total_distance: number;
+  total_rides: number;
+  total_elevation: number;
+  total_time?: number;
+  biggest_ride_distance?: number;
+  recent_activities?: Array<{
+    name: string;
     distance: number;
     moving_time: number;
-    elevation_gain: number;
-  };
-  all_ride_totals: {
-    count: number;
-    distance: number;
-    moving_time: number;
-    elevation_gain: number;
-  };
-}
-
-interface StravaActivity {
-  strava_activity_id: number;
-  name: string;
-  type: string;
-  distance: number;
-  moving_time: number;
-  total_elevation_gain: number;
-  start_date: string;
+    total_elevation_gain: number;
+    start_date: string;
+  }>;
 }
 
 const Stats = () => {
-  const [stats, setStats] = useState<StatsData | null>(null);
-  const [activities, setActivities] = useState<StravaActivity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stravaConnected, setStravaConnected] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [stravaStats, setStravaStats] = useState<StravaStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const checkStravaConnection = async () => {
-    if (!user) return;
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
+  const fetchStats = async () => {
     try {
-      const { data, error } = await supabase
+      if (!user?.id) return;
+
+      // Check if user has Strava connected
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('strava_access_token, strava_connected_at')
+        .select('strava_access_token')
         .eq('user_id', user.id)
         .single();
 
-      if (!error && data?.strava_access_token) {
-        setStravaConnected(true);
-        await fetchActivities();
+      if (!profile?.strava_access_token) {
+        toast({
+          title: "No Strava Connection",
+          description: "Please connect your Strava account to view stats.",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
       }
-    } catch (error) {
-      console.error('Error checking Strava connection:', error);
-    }
-  };
 
-  const fetchActivities = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('strava_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('start_date', { ascending: false });
+      // Fetch stats from Strava API
+      const { data, error } = await supabase.functions.invoke('strava-stats', {
+        body: { year: new Date().getFullYear() }
+      });
 
       if (error) {
-        console.error('Error fetching activities:', error);
-        return;
+        console.error('Strava stats error:', error);
+        throw error;
+      }
+      
+      if (data) {
+        setStravaStats(data);
       }
 
-      setActivities(data || []);
-      calculateStats(data || []);
-    } catch (error) {
-      console.error('Error fetching activities:', error);
+    } catch (error: any) {
+      console.error('Error fetching stats:', error);
+      toast({
+        title: "Error fetching stats",
+        description: "Unable to load your cycling stats. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const calculateStats = (activities: StravaActivity[]) => {
-    const currentYear = new Date().getFullYear();
-    const ytdActivities = activities.filter(activity => 
-      new Date(activity.start_date).getFullYear() === currentYear
-    );
-
-    const calculateTotals = (activityList: StravaActivity[]) => ({
-      count: activityList.length,
-      distance: activityList.reduce((sum, a) => sum + Number(a.distance), 0),
-      moving_time: activityList.reduce((sum, a) => sum + Number(a.moving_time), 0),
-      elevation_gain: activityList.reduce((sum, a) => sum + Number(a.total_elevation_gain), 0),
-    });
-
-    setStats({
-      ytd_ride_totals: calculateTotals(ytdActivities),
-      all_ride_totals: calculateTotals(activities),
-    });
-  };
-
-  const handleStravaConnectionChange = () => {
-    checkStravaConnection();
-  };
-
-  useEffect(() => {
-    const initializeStats = async () => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
-
-      await checkStravaConnection();
-      setLoading(false);
-    };
-
-    initializeStats();
-  }, [user, navigate]);
-
-  const formatDistance = (distance: number): string => {
-    return (distance / 1000).toFixed(1);
-  };
-
-  const formatTime = (seconds: number): string => {
+  const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your cycling stats...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <h1 className="text-3xl font-bold">Performance Stats</h1>
+    <div className="min-h-screen bg-gradient-to-br from-glass-blue/10 via-background to-glass-purple/10">
+      <header className="border-b glass-card">
+        <div className="container flex h-14 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <img src="/lovable-uploads/0bcdc662-0aa0-4fc2-97c0-2ca4dae55f49.png" alt="BMT" className="h-6 w-6" />
+            <h1 className="text-lg font-semibold">Cycling Stats</h1>
+          </div>
         </div>
+      </header>
 
-        {!stravaConnected ? (
-          <StravaConnect 
-            isConnected={stravaConnected} 
-            onConnectionChange={handleStravaConnectionChange}
-          />
+      <div className="container py-6 space-y-6">
+        {!stravaStats ? (
+          <Card className="glass-card p-8 text-center">
+            <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Stats Not Available</h3>
+            <p className="text-muted-foreground mb-4">
+              Your cycling stats will appear here once your Strava connection is working properly.
+            </p>
+          </Card>
         ) : (
           <>
-            {stats && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Year to Date Stats */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      Year to Date
-                    </CardTitle>
-                    <CardDescription>Your cycling progress this year</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Rides</span>
-                        </div>
-                        <p className="text-2xl font-bold">{stats.ytd_ride_totals.count}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <BarChart3 className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Distance</span>
-                        </div>
-                        <p className="text-2xl font-bold">{formatDistance(stats.ytd_ride_totals.distance)} km</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Moving Time</span>
-                        </div>
-                        <p className="text-2xl font-bold">{formatTime(stats.ytd_ride_totals.moving_time)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Elevation</span>
-                        </div>
-                        <p className="text-2xl font-bold">{Math.round(stats.ytd_ride_totals.elevation_gain)} m</p>
-                      </div>
+            {/* Overview Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <MapPin className="h-6 w-6 text-primary" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div>
+                      <p className="text-2xl font-bold">{(stravaStats.total_distance / 1000).toFixed(0)} km</p>
+                      <p className="text-sm text-muted-foreground">Total Distance</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* All Time Stats */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
-                      All Time
-                    </CardTitle>
-                    <CardDescription>Your total cycling achievements</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Rides</span>
-                        </div>
-                        <p className="text-2xl font-bold">{stats.all_ride_totals.count}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <BarChart3 className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Distance</span>
-                        </div>
-                        <p className="text-2xl font-bold">{formatDistance(stats.all_ride_totals.distance)} km</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Moving Time</span>
-                        </div>
-                        <p className="text-2xl font-bold">{formatTime(stats.all_ride_totals.moving_time)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" />
-                          <span className="text-sm text-muted-foreground">Elevation</span>
-                        </div>
-                        <p className="text-2xl font-bold">{Math.round(stats.all_ride_totals.elevation_gain)} m</p>
-                      </div>
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Activity className="h-6 w-6 text-primary" />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                    <div>
+                      <p className="text-2xl font-bold">{stravaStats.total_rides}</p>
+                      <p className="text-sm text-muted-foreground">Total Rides</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <TrendingUp className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stravaStats.total_elevation.toLocaleString()} m</p>
+                      <p className="text-sm text-muted-foreground">Total Elevation</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Recent Activities */}
-            {activities.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activities</CardTitle>
-                  <CardDescription>Your latest rides from Strava</CardDescription>
-                </CardHeader>
-                <CardContent>
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Recent Activities
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!stravaStats.recent_activities || stravaStats.recent_activities.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Recent activities data not available.</p>
+                ) : (
                   <div className="space-y-4">
-                    {activities.slice(0, 10).map((activity) => (
-                      <div key={activity.strava_activity_id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div className="flex items-center gap-3">
-                          <Activity className="h-4 w-4 text-primary" />
-                          <div>
-                            <p className="font-medium">{activity.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(activity.start_date).toLocaleDateString()} • {activity.type}
-                            </p>
-                          </div>
+                    {stravaStats.recent_activities.map((activity, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{activity.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(activity.start_date)}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{formatDistance(activity.distance)} km</p>
-                          <p className="text-sm text-muted-foreground">{formatTime(activity.moving_time)}</p>
+                          <p className="font-medium">{(activity.distance / 1000).toFixed(1)} km</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatTime(activity.moving_time)} • {activity.total_elevation_gain}m elevation
+                          </p>
                         </div>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

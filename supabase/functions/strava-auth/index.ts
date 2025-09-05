@@ -1,120 +1,127 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
-serve(async (req) => {
-  // Handle CORS preflight requests
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { code, state } = await req.json();
-    
-    if (!code) {
-      throw new Error('Authorization code is required');
-    }
-
-    const clientId = Deno.env.get('STRAVA_CLIENT_ID');
-    const clientSecret = Deno.env.get('STRAVA_CLIENT_SECRET');
-    
-    if (!clientId || !clientSecret) {
-      throw new Error('Strava credentials not configured');
-    }
-
-    // Exchange authorization code for access token
-    const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code,
-        grant_type: 'authorization_code',
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
-      console.error('Strava token exchange failed:', error);
-      throw new Error('Failed to exchange authorization code');
-    }
-
-    const tokenData = await tokenResponse.json();
-    console.log('Strava token exchange successful:', { athlete_id: tokenData.athlete?.id });
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get user from JWT token
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      throw new Error('Authorization header is required');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !user) {
-      console.error('Failed to get user:', userError);
-      throw new Error('Invalid authentication token');
-    }
-
-    // Calculate token expiry
-    const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-
-    // Update or create user profile with Strava tokens
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        user_id: user.id,
-        strava_access_token: tokenData.access_token,
-        strava_refresh_token: tokenData.refresh_token,
-        strava_athlete_id: tokenData.athlete?.id,
-        strava_connected_at: new Date().toISOString(),
-        strava_token_expires_at: expiresAt.toISOString(),
-      }, {
-        onConflict: 'user_id'
-      });
-
-    if (profileError) {
-      console.error('Failed to update profile:', profileError);
-      throw new Error('Failed to save Strava connection');
-    }
-
-    console.log('Successfully connected Strava for user:', user.id);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        athlete: tokenData.athlete,
-        connected_at: new Date().toISOString()
-      }),
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
       }
-    );
+    )
+
+    const { data: { user } } = await supabaseClient.auth.getUser()
+    if (!user) {
+      throw new Error('Unauthorized')
+    }
+
+    const { action, code } = await req.json()
+
+    if (action === 'get_auth_url') {
+      // Generate Strava authorization URL
+      const clientId = Deno.env.get('STRAVA_CLIENT_ID')
+      const redirectUri = req.headers.get('origin') || 'preview--ride-track-tune-02.lovable.app'
+      const scope = 'read,activity:read,profile:read_all'
+      
+      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=${scope}&state=strava`
+      
+      return new Response(
+        JSON.stringify({ authUrl }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    if (action === 'exchange_token' && code) {
+      // Exchange authorization code for access token
+      const clientId = Deno.env.get('STRAVA_CLIENT_ID')
+      const clientSecret = Deno.env.get('STRAVA_CLIENT_SECRET')
+
+      const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          grant_type: 'authorization_code',
+        }),
+      })
+
+      const tokenData = await tokenResponse.json()
+
+      if (!tokenResponse.ok) {
+        throw new Error(`Strava token exchange failed: ${tokenData.message}`)
+      }
+
+      // Store tokens in user profile
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({
+          strava_access_token: tokenData.access_token,
+          strava_refresh_token: tokenData.refresh_token,
+          strava_athlete_id: tokenData.athlete.id.toString(),
+        })
+        .eq('user_id', user.id)
+
+      if (error) {
+        throw new Error(`Failed to store Strava tokens: ${error.message}`)
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, athlete: tokenData.athlete }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    if (action === 'disconnect') {
+      // Remove Strava tokens from user profile
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({
+          strava_access_token: null,
+          strava_refresh_token: null,
+          strava_athlete_id: null,
+        })
+        .eq('user_id', user.id)
+
+      if (error) {
+        throw new Error(`Failed to disconnect Strava: ${error.message}`)
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    throw new Error('Invalid action')
 
   } catch (error) {
-    console.error('Error in strava-auth function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      JSON.stringify({ error: error.message }),
+      { 
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    );
+    )
   }
-});
+})

@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -323,10 +323,8 @@ export type Database = {
           created_at: string
           id: string
           strava_access_token: string | null
-          strava_athlete_id: number | null
-          strava_connected_at: string | null
+          strava_athlete_id: string | null
           strava_refresh_token: string | null
-          strava_token_expires_at: string | null
           updated_at: string
           user_id: string
         }
@@ -335,10 +333,8 @@ export type Database = {
           created_at?: string
           id?: string
           strava_access_token?: string | null
-          strava_athlete_id?: number | null
-          strava_connected_at?: string | null
+          strava_athlete_id?: string | null
           strava_refresh_token?: string | null
-          strava_token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -347,10 +343,8 @@ export type Database = {
           created_at?: string
           id?: string
           strava_access_token?: string | null
-          strava_athlete_id?: number | null
-          strava_connected_at?: string | null
+          strava_athlete_id?: string | null
           strava_refresh_token?: string | null
-          strava_token_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -448,48 +442,50 @@ export type Database = {
       }
       strava_activities: {
         Row: {
+          activity_id: number
+          activity_type: string | null
+          bike_id: string | null
           created_at: string
-          distance: number
-          elapsed_time: number
+          distance: number | null
           id: string
-          moving_time: number
-          name: string
-          start_date: string
-          strava_activity_id: number
-          total_elevation_gain: number
-          type: string
+          name: string | null
+          start_date: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          activity_id: number
+          activity_type?: string | null
+          bike_id?: string | null
           created_at?: string
-          distance?: number
-          elapsed_time?: number
+          distance?: number | null
           id?: string
-          moving_time?: number
-          name: string
-          start_date: string
-          strava_activity_id: number
-          total_elevation_gain?: number
-          type: string
+          name?: string | null
+          start_date?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          activity_id?: number
+          activity_type?: string | null
+          bike_id?: string | null
           created_at?: string
-          distance?: number
-          elapsed_time?: number
+          distance?: number | null
           id?: string
-          moving_time?: number
-          name?: string
-          start_date?: string
-          strava_activity_id?: number
-          total_elevation_gain?: number
-          type?: string
+          name?: string | null
+          start_date?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "strava_activities_bike_id_fkey"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       valuation_history: {
         Row: {

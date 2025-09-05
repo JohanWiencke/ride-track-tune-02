@@ -9,8 +9,6 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  console.log('Index component rendered:', { user: !!user, loading, currentPath: window.location.pathname });
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -19,39 +17,56 @@ const Index = () => {
       const state = urlParams.get('state');
       const error = urlParams.get('error');
 
-      // Handle Strava OAuth callback
-      if (code && state) {
+      // Check if this is a Strava callback
+      if (code && state === 'strava') {
         try {
-          console.log('Processing Strava OAuth callback...');
-          
           const { data, error } = await supabase.functions.invoke('strava-auth', {
-            body: { code, state },
-            headers: {
-              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-            },
+            body: { action: 'exchange_token', code }
           });
 
-          if (error) {
-            throw error;
-          }
+          if (error) throw error;
 
           toast({
-            title: 'Strava Connected!',
-            description: 'Your Strava account has been successfully connected.',
+            title: "Strava Connected!",
+            description: `Connected as ${data.athlete.firstname} ${data.athlete.lastname}`,
           });
-
-          console.log('Strava connection successful:', data);
+          
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error: any) {
-          console.error('Error connecting Strava:', error);
           toast({
-            title: 'Connection Failed',
-            description: error.message || 'Failed to connect Strava account.',
-            variant: 'destructive',
+            title: "Strava Connection Error",
+            description: error.message || "Failed to complete Strava connection",
+            variant: "destructive",
           });
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
+      }
+      
+      // Check if this is a Wahoo callback  
+      else if (code && state === 'wahoo') {
+        try {
+          const { data, error } = await supabase.functions.invoke('wahoo-auth', {
+            body: { action: 'exchange_token', code }
+          });
 
-        // Clean up URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
+          if (error) throw error;
+
+          toast({
+            title: "Wahoo Connected!",
+            description: "Your Wahoo account has been connected successfully.",
+          });
+          
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (error: any) {
+          toast({
+            title: "Wahoo Connection Error",
+            description: error.message || "Failed to complete Wahoo connection",
+            variant: "destructive",
+          });
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
       }
       
       // Handle OAuth errors
@@ -63,18 +78,15 @@ const Index = () => {
         });
         window.history.replaceState({}, document.title, window.location.pathname);
       }
+      
+      // Normal auth redirect for non-OAuth users
+      else if (!loading && !user && !code) {
+        navigate('/auth');
+      }
     };
 
     handleOAuthCallback();
-  }, [toast]);
-
-  useEffect(() => {
-    console.log('Index redirect useEffect triggered:', { user: !!user, loading });
-    if (!loading && !user) {
-      console.log('Redirecting to /auth');
-      navigate('/auth');
-    }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, toast]);
 
   if (loading) {
     return (
