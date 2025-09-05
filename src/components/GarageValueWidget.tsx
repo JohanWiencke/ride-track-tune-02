@@ -50,7 +50,7 @@ export const GarageValueWidget = () => {
   const [canValuate, setCanValuate] = useState(true);
 
   const fetchBikeValuations = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const { data, error } = await supabase
@@ -70,7 +70,7 @@ export const GarageValueWidget = () => {
   };
 
   const fetchBikes = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const { data, error } = await supabase
@@ -99,7 +99,7 @@ export const GarageValueWidget = () => {
   };
 
   const fetchValuationHistory = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const { data, error } = await supabase
@@ -116,7 +116,7 @@ export const GarageValueWidget = () => {
   };
 
   const checkCanValuate = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       // Check if user has valuated in the last 3.5 days (twice per week = every 3.5 days)
@@ -157,7 +157,7 @@ export const GarageValueWidget = () => {
   };
 
   const saveValuationHistory = async (estimatedValue: number, bikesValued: number) => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const { error } = await supabase
@@ -293,7 +293,7 @@ export const GarageValueWidget = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchBikes();
       fetchBikeValuations();
       fetchValuationHistory();

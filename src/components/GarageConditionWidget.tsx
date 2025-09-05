@@ -32,7 +32,7 @@ export const GarageConditionWidget = () => {
   });
 
   const fetchComponents = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const { data, error } = await supabase
@@ -96,7 +96,7 @@ export const GarageConditionWidget = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchComponents();
     }
   }, [user]);
